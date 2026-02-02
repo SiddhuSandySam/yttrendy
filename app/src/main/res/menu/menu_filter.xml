@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:title="Content Type" android:enabled="false" />
+    <item android:id="@+id/filter_all" android:title="All Videos" />
+    <item android:id="@+id/filter_live" android:title="🔴 Live Streams" />
+
+    <item android:title="Upload Date" android:enabled="false" />
+    <item android:id="@+id/time_any" android:title="Any Time" /> <!-- ADDED -->
+    <item android:id="@+id/time_hour" android:title="Last Hour" />
+    <item android:id="@+id/time_today" android:title="Today" />
+    <item android:id="@+id/time_week" android:title="Recent Week" />
+
+    <item android:title="Sort By" android:enabled="false" />
+    <item android:id="@+id/sort_relevance" android:title="Relevance" /> <!-- ADDED -->
+    <item android:id="@+id/sort_views" android:title="Most Viewed" />
+    <item android:id="@+id/sort_date" android:title="Newest First" />
+    <item android:id="@+id/sort_rating" android:title="Top Rated" />
+
+    <item android:title="Duration" android:enabled="false" />
+    <item android:id="@+id/dur_any" android:title="Any Duration" /> <!-- ADDED -->
+    <item android:id="@+id/dur_short" android:title="Shorts (&lt; 4m)" />
+    <item android:id="@+id/dur_long" android:title="Movies/Long (&gt; 20m)" />
+
+</menu>

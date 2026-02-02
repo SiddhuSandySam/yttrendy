@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_home"
+        android:icon="@android:drawable/ic_menu_today"
+        android:title="Home" />
+    <item
+        android:id="@+id/nav_saved"
+        android:icon="@android:drawable/btn_star"
+        android:title="Saved Videos" />
+    <item
+        android:id="@+id/nav_history"
+        android:icon="@android:drawable/ic_menu_recent_history"
+        android:title="History" />
+
+    <item android:title="Support">
+        <menu>
+            <item
+                android:id="@+id/nav_share"
+                android:icon="@android:drawable/ic_menu_share"
+                android:title="Share App" />
+            <item
+                android:id="@+id/nav_rate"
+                android:icon="@android:drawable/btn_star_big_on"
+                android:title="Rate Us" />
+        </menu>
+    </item>
+</menu>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_marginBottom="24dp">
+
+    <!-- Header: Title + View More -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="8dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/section_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Category Name"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/section_view_more"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="View more ›"
+            android:textColor="@color/text_secondary_dark"
+            android:textSize="12sp"
+            android:padding="4dp"/>
+    </LinearLayout>
+
+    <!-- Horizontal List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/section_recycler_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:clipToPadding="false"
+        android:paddingHorizontal="12dp" />
+
+    <!-- Loading Bar for this section -->
+    <ProgressBar
+        android:id="@+id/section_loading"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_gravity="center"
+        android:visibility="visible"/>
+
+</LinearLayout>

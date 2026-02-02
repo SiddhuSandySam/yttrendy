@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:fitsSystemWindows="true"
+
+    android:background="@color/background_dark">
+
+    <!-- Search Toolbar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:background="@color/card_background_dark"
+        android:elevation="4dp">
+
+        <!-- Back Button -->
+        <ImageView
+            android:id="@+id/btn_back"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_launcher_foreground"
+            android:rotation="180"
+            app:tint="@color/text_secondary_dark" />
+        <!-- (Note: Back icon ke liye rotation use kiya ya koi bhi arrow icon laga lena) -->
+
+        <!-- Search Input -->
+        <EditText
+            android:id="@+id/et_search"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@null"
+            android:hint="Search topics, channels..."
+            android:textColor="@color/white"
+            android:textColorHint="@color/text_secondary_dark"
+            android:layout_marginStart="16dp"
+            android:imeOptions="actionSearch"
+            android:inputType="text"/>
+
+        <!-- Search Action Button -->
+        <ImageView
+            android:id="@+id/btn_perform_search"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@android:drawable/ic_menu_search"
+            app:tint="@color/accent_blue" />
+
+    </LinearLayout>
+
+    <!-- Filter Bar (Optional but cool) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="8dp"
+        android:background="#1A1A1A">
+
+        <TextView
+            android:id="@+id/btn_search_filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Filter Results ▾"
+            android:textColor="@color/accent_blue"
+            android:padding="8dp"
+            android:drawableEnd="@android:drawable/arrow_down_float"
+            android:drawableTint="@color/accent_blue"/>
+    </LinearLayout>
+
+    <!-- Loading -->
+    <ProgressBar
+        android:id="@+id/search_loading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone"
+        android:layout_marginTop="20dp"/>
+
+    <!-- Results List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/search_recycler_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="8dp"/>
+
+</LinearLayout>
