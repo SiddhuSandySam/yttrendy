@@ -6,20 +6,25 @@
     android:background="@android:color/black"
     android:orientation="vertical">
 
+    <!-- YouTube Player View -->
     <com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
         android:id="@+id/youtube_player_view1"
         android:layout_width="match_parent"
         android:layout_height="250dp" />
 
-    <ScrollView
+    <!-- Scrollable Content Area -->
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@color/background_dark">
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="16dp">
+
+            <!-- Title -->
             <TextView
                 android:id="@+id/player_title_view"
                 android:layout_width="match_parent"
@@ -27,13 +32,16 @@
                 android:textColor="@color/white"
                 android:textSize="18sp"
                 android:textStyle="bold" />
+
+            <!-- Description -->
             <TextView
                 android:id="@+id/player_desc_view"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:textColor="@color/text_secondary_dark" />
-            <!-- Title ke theek upar ya niche ye button add kardo -->
+
+            <!-- Buttons: Save & Share -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -41,7 +49,6 @@
                 android:layout_marginTop="12dp"
                 android:layout_marginBottom="8dp">
 
-                <!-- Save Button -->
                 <Button
                     android:id="@+id/btn_save_video"
                     android:layout_width="0dp"
@@ -53,7 +60,6 @@
                     android:layout_marginEnd="8dp"
                     app:cornerRadius="8dp"/>
 
-                <!-- Share Button (Naya Feature) -->
                 <Button
                     android:id="@+id/btn_share_video"
                     android:layout_width="0dp"
@@ -63,8 +69,41 @@
                     android:backgroundTint="#222"
                     android:textColor="@color/white"
                     app:cornerRadius="8dp"/>
-
             </LinearLayout>
+
+            <!-- DIVIDER LINE -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#33FFFFFF"
+                android:layout_marginVertical="16dp"/>
+
+            <!-- RELATED VIDEOS HEADER -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Up Next"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp"/>
+
+            <!-- Loading Spinner -->
+            <ProgressBar
+                android:id="@+id/related_loading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:visibility="visible"/>
+
+            <!-- Related Videos List -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_related"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false" />
+            <!-- nestedScrollingEnabled=false zaroori hai taki 2 scrollbar na bane -->
+
         </LinearLayout>
-    </ScrollView>
+    </androidx.core.widget.NestedScrollView>
 </LinearLayout>

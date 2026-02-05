@@ -14,6 +14,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.google.android.gms.ads.AdLoader;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.nativead.NativeAdView;
@@ -80,6 +81,8 @@ public class VideoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         }
     }
 
+// VideoAdapter.java ke andar bindVideoData method dhundo aur replace karo:
+
     private void bindVideoData(VideoViewHolder holder, VideoItem currentItem) {
         if (currentItem.getSnippet() != null) {
             holder.titleTextView.setText(currentItem.getSnippet().getTitle());
@@ -92,29 +95,30 @@ public class VideoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             }
             holder.detailsTextView.setText(detailsText);
 
+            // --- OPTIMIZED GLIDE LOADING ---
             Glide.with(context)
                     .load(currentItem.getSnippet().getThumbnails().getHigh().getUrl())
+                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL) // Cache Original & Resized
+                    .placeholder(R.color.cardview_dark_background) // Load hone tak Dark Gray dikhega
+                    .error(android.R.drawable.ic_menu_report_image) // Agar load fail ho to
+                    .centerCrop() // Image ko properly fit karega
+                    .transition(com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions.withCrossFade()) // Smooth Fade-in Effect
                     .into(holder.thumbnailImageView);
 
-            // --- Click Listeners (Ab ye safe hain kyunki bindVideoData ke andar hain) ---
-
-            // 1. Pura Card click (Video Play)
+            // Click Listeners
             holder.itemView.setOnClickListener(v -> listener.onItemClick(currentItem));
 
-            // 2. Share Icon click
             if (holder.btnShare != null) {
                 holder.btnShare.setOnClickListener(v ->
                         shareVideo(context, currentItem.getId(), currentItem.getSnippet().getTitle()));
             }
 
-            // 3. Save Icon click
             if (holder.btnSave != null) {
                 holder.btnSave.setOnClickListener(v ->
                         saveVideoToDb(context, currentItem));
             }
         }
     }
-
     private void shareVideo(Context ctx, String vId, String vTitle) {
         // FIX: Missing URL part fixed
         String youtubeUrl = "https://www.youtube.com/watch?v=" + vId;

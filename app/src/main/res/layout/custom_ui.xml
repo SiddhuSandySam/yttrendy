@@ -5,22 +5,74 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Play/Pause Container -->
+    <!-- 1. DOUBLE TAP OVERLAY (Invisible) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:baselineAligned="false">
+
+        <!-- Left Side (Rewind) -->
+        <View
+            android:id="@+id/view_rewind"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"/>
+        <!-- Background hatana ho to @android:color/transparent kar dena -->
+
+        <!-- Center Gap (Taki Play Button pe click ho sake) -->
+        <View
+            android:layout_width="80dp"
+            android:layout_height="match_parent"
+            android:clickable="false" />
+
+        <!-- Right Side (Forward) -->
+        <View
+            android:id="@+id/view_forward"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"/>
+    </LinearLayout>
+
+
+    <!-- 2. PLAY/PAUSE CONTAINER (Center) -->
+    <!-- Isko Overlay ke baad rakha hai taki ye Z-Index me upar rahe -->
     <LinearLayout
         android:id="@+id/container1"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="#44000000"
-        android:gravity="center">
+        android:gravity="center"
+        android:clickable="false"> <!-- Container click na le -->
 
         <ImageButton
             android:id="@+id/pausePlay"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
             android:background="@android:color/transparent"
             android:src="@android:drawable/ic_media_pause"
             app:tint="@android:color/white" />
     </LinearLayout>
+
+    <!-- 3. OTHER CONTROLS -->
+
+    <!-- Mute/Unmute Button (Top Right) -->
+    <ImageButton
+        android:id="@+id/btnVolume"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentTop="true"
+        android:layout_margin="16dp"
+        android:background="@android:color/transparent"
+        android:src="@android:drawable/ic_lock_silent_mode_off"
+        app:tint="@android:color/white" />
 
     <!-- Full Screen Button (Bottom Right) -->
     <ImageButton

@@ -41,8 +41,14 @@ public class ShortsAdapter extends RecyclerView.Adapter<ShortsAdapter.ShortsView
         VideoItem item = shortsList.get(position);
         holder.title.setText(item.getSnippet().getTitle());
 
+        // Inside ShortsAdapter.java -> onBindViewHolder()
+
         Glide.with(context)
                 .load(item.getSnippet().getThumbnails().getHigh().getUrl())
+                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                .placeholder(R.color.cardview_dark_background)
+                .centerCrop()
+                .transition(com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions.withCrossFade())
                 .into(holder.thumbnail);
 
         holder.itemView.setOnClickListener(v -> listener.onShortClick(item));

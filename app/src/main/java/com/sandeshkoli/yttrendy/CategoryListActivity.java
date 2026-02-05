@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.gson.Gson;
 import com.sandeshkoli.yttrendy.adapter.VideoAdapter;
 import com.sandeshkoli.yttrendy.models.VideoItem;
 import com.sandeshkoli.yttrendy.models.VideoResponse;
@@ -154,9 +155,9 @@ public class CategoryListActivity extends AppCompatActivity {
     private void decideAndFetchData(int retryCount) {
         String currentKey = KeyManager.getApiKey(this);
         YouTubeApiService apiService = RetrofitClient.getRetrofitInstance(this).create(YouTubeApiService.class);
-        String cacheKey = "view_more_" + (categoryId != null ? categoryId : categoryName) + "_" + currentOrder;
+        String cacheKey = "view_more_" + (categoryId != null ? categoryId : categoryName) + "_" + currentOrder + "_" + videoDuration;
         JsonCacheManager cm = new JsonCacheManager(this);
-        com.google.gson.Gson gson = new com.google.gson.Gson();
+        Gson gson = new Gson();
 
         Callback<VideoResponse> callback = new Callback<VideoResponse>() {
             @Override
@@ -174,14 +175,36 @@ public class CategoryListActivity extends AppCompatActivity {
             }
         };
 
-        if (!isFilterApplied && categoryId != null) {
+        Call<VideoResponse> call;
+        String query = categoryName;
+        String order = currentOrder;
+
+        // --- FIX: Logic to handle MOST_VIEWED/MOST_LIKED from Home Screen ---
+        if ("MOST_VIEWED".equals(categoryId) || "MOST_VIEWED".equals(categoryName)) {
+            query = "most popular videos";
+            order = "viewCount";
+            // Filter lagne par bhi viewCount hi rahega
+        }
+        else if ("MOST_LIKED".equals(categoryId) || "MOST_LIKED".equals(categoryName)) {
+            query = "top rated videos";
+            order = "rating";
+            // Filter lagne par bhi rating hi rahega
+        }
+        else if (categoryName.equals("🔥 Trending Now")) {
+            query = "trending india";
+        }
+        // --- FIX END ---
+
+
+        // 1. CHEAP CALL: Agar filter nahi laga aur humare paas Category ID hai
+        if (!isFilterApplied && categoryId != null && categoryId.matches("\\d+")) {
             apiService.getVideos("snippet,statistics", "mostPopular", "IN", categoryId, 50, currentKey).enqueue(callback);
-        } else {
-            String query = categoryName.equals("🔥 Trending Now") ? "Trending India" : categoryName;
-            apiService.searchVideos("snippet", query, currentOrder, publishedAfter, videoDuration, eventType, "video", 50, currentKey).enqueue(callback);
+        }
+        // 2. EXPENSIVE CALL: Search ya Unique Shelves ke liye
+        else {
+            apiService.searchVideos("snippet", query, order, publishedAfter, videoDuration, eventType, "video", 50, currentKey).enqueue(callback);
         }
     }
-
     private void handleApiResponse(Response<VideoResponse> response, String key, JsonCacheManager cm, com.google.gson.Gson gson) {
         if(progressBar != null) progressBar.setVisibility(View.GONE);
         if (response.isSuccessful() && response.body() != null) {

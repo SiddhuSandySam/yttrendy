@@ -8,6 +8,9 @@ public class CategoryHelper {
         LinkedHashMap<String, String> map = new LinkedHashMap<>();
 
         // Trending
+        map.put("🏆 Most Viewed", "MOST_VIEWED"); // Keyword for viewCount
+        map.put("👍 Most Liked", "MOST_LIKED");    // Keyword for rating
+        map.put("⚡ Shorts", "SHORTS_TREND");
         map.put("🔥 Trending Now", null);
 
         // Standard Categories (1 Unit Cost)
