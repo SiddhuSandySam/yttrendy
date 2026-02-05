@@ -21,25 +21,22 @@ import com.sandeshkoli.yttrendy.R;
 public class CustomPlayerUiController extends AbstractYouTubePlayerListener {
     private final YouTubePlayerTracker playerTracker;
     private final YouTubePlayer youTubePlayer;
-    private final YouTubePlayerView youTubePlayerView;
     private final Activity activity;
     private final FadeViewHelper fadeViewHelper;
 
-    // Double Tap Logic Variables
-    private int forwardClicks = 0;
-    private int rewindClicks = 0;
-    private final Handler handler = new Handler(Looper.getMainLooper());
+    // --- MULTI-TAP VARIABLES ---
+    private int tapCount = 0;
+    private final Handler tapHandler = new Handler(Looper.getMainLooper());
+    private Runnable tapRunnable;
     private boolean isMuted = false;
 
     public CustomPlayerUiController(Activity activity, View controlsUi, YouTubePlayer youTubePlayer, YouTubePlayerView youTubePlayerView) {
         this.activity = activity;
         this.youTubePlayer = youTubePlayer;
-        this.youTubePlayerView = youTubePlayerView;
         this.playerTracker = new YouTubePlayerTracker();
 
         youTubePlayer.addListener(playerTracker);
 
-        // Auto-hide controls helper
         View container = controlsUi.findViewById(R.id.container1);
         fadeViewHelper = new FadeViewHelper(container);
         youTubePlayer.addListener(fadeViewHelper);
@@ -56,16 +53,12 @@ public class CustomPlayerUiController extends AbstractYouTubePlayerListener {
         View viewForward = view.findViewById(R.id.view_forward);
         View viewRewind = view.findViewById(R.id.view_rewind);
 
-        // --- SEEKBAR LOGIC ---
         youTubePlayer.addListener(seekBar);
         seekBar.setYoutubePlayerSeekBarListener(new YouTubePlayerSeekBarListener() {
             @Override
-            public void seekTo(float time) {
-                youTubePlayer.seekTo(time);
-            }
+            public void seekTo(float time) { youTubePlayer.seekTo(time); }
         });
 
-        // --- PLAY / PAUSE ---
         pausePlay.setOnClickListener(v -> {
             if (playerTracker.getState() == PlayerConstants.PlayerState.PLAYING) {
                 pausePlay.setImageResource(android.R.drawable.ic_media_play);
@@ -76,7 +69,6 @@ public class CustomPlayerUiController extends AbstractYouTubePlayerListener {
             }
         });
 
-        // --- FULL SCREEN ---
         fullScreen.setOnClickListener(v -> {
             if (activity.getRequestedOrientation() == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
                 activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
@@ -85,7 +77,6 @@ public class CustomPlayerUiController extends AbstractYouTubePlayerListener {
             }
         });
 
-        // --- MUTE / UNMUTE BUTTON ---
         btnVolume.setOnClickListener(v -> {
             if (isMuted) {
                 youTubePlayer.unMute();
@@ -99,46 +90,41 @@ public class CustomPlayerUiController extends AbstractYouTubePlayerListener {
             }
         });
 
-        // --- DOUBLE TAP LOGIC (FORWARD) ---
-        viewForward.setOnClickListener(v -> {
-            forwardClicks++;
-            if (forwardClicks == 1) {
-                // Wait 300ms to see if it's a double tap
-                handler.postDelayed(() -> {
-                    if (forwardClicks == 1) {
-                        // Single Tap: Toggle Controls
-                        fadeViewHelper.toggleVisibility();
-                    }
-                    forwardClicks = 0;
-                }, 300);
-            } else if (forwardClicks == 2) {
-                // Double Tap Detected!
-                forwardClicks = 0;
-                float current = playerTracker.getCurrentSecond();
-                youTubePlayer.seekTo(current + 10);
-                Toast.makeText(activity, "+10s", Toast.LENGTH_SHORT).show();
-            }
-        });
+        // --- UPDATED MULTI-TAP SEEKING LOGIC ---
 
-        // --- DOUBLE TAP LOGIC (REWIND) ---
-        viewRewind.setOnClickListener(v -> {
-            rewindClicks++;
-            if (rewindClicks == 1) {
-                handler.postDelayed(() -> {
-                    if (rewindClicks == 1) {
-                        fadeViewHelper.toggleVisibility();
-                    }
-                    rewindClicks = 0;
-                }, 300);
-            } else if (rewindClicks == 2) {
-                rewindClicks = 0;
-                float current = playerTracker.getCurrentSecond();
-                youTubePlayer.seekTo(Math.max(0, current - 10));
-                Toast.makeText(activity, "-10s", Toast.LENGTH_SHORT).show();
-            }
-        });
+        viewForward.setOnClickListener(v -> handleMultiTap(true));
+        viewRewind.setOnClickListener(v -> handleMultiTap(false));
+    }
 
-        // Root listener hatado kyunki ab humare custom views click handle kar rahe hain
-        // view.findViewById(R.id.root).setOnClickListener(...) -> REMOVED
+    private void handleMultiTap(boolean isForward) {
+        tapCount++;
+
+        // Purana timer cancel karo
+        tapHandler.removeCallbacks(tapRunnable);
+
+        tapRunnable = () -> {
+            if (tapCount == 1) {
+                // Single Tap: Controls show/hide karo
+                fadeViewHelper.toggleVisibility();
+            } else {
+                // Multi Tap: Seek karo
+                // Formula: (Taps - 1) * 10. (e.g., 2 taps = 10s, 3 taps = 20s)
+                int secondsToSeek = (tapCount - 1) * 10;
+                float currentTime = playerTracker.getCurrentSecond();
+
+                if (isForward) {
+                    youTubePlayer.seekTo(currentTime + secondsToSeek);
+                    Toast.makeText(activity, "Forward +" + secondsToSeek + "s", Toast.LENGTH_SHORT).show();
+                } else {
+                    youTubePlayer.seekTo(Math.max(0, currentTime - secondsToSeek));
+                    Toast.makeText(activity, "Rewind -" + secondsToSeek + "s", Toast.LENGTH_SHORT).show();
+                }
+            }
+            // Reset count
+            tapCount = 0;
+        };
+
+        // 600ms ka window de rahe hain agla tap karne ke liye
+        tapHandler.postDelayed(tapRunnable, 600);
     }
 }

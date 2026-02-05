@@ -15,8 +15,8 @@ android {
         applicationId "com.sandeshkoli.yttrendy"
         minSdk 24
         targetSdk 36
-        versionCode 1
-        versionName "1.0"
+        versionCode 3
+        versionName "1.2"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
@@ -76,5 +76,8 @@ dependencies {
     annotationProcessor "androidx.room:room-compiler:$room_version"
 
     implementation 'com.google.android.gms:play-services-ads:23.0.0'
+
+    implementation 'androidx.work:work-runtime:2.8.1'
+
 
 }

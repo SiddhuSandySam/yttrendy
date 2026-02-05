@@ -15,11 +15,14 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkManager;
 
 import com.facebook.shimmer.ShimmerFrameLayout;
 import com.google.android.material.navigation.NavigationView;
@@ -34,10 +37,12 @@ import com.sandeshkoli.yttrendy.utils.AdManager;
 import com.sandeshkoli.yttrendy.utils.CategoryHelper;
 import com.sandeshkoli.yttrendy.utils.JsonCacheManager;
 import com.sandeshkoli.yttrendy.utils.KeyManager;
+import com.sandeshkoli.yttrendy.utils.NotificationWorker;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -81,6 +86,19 @@ public class MainActivity extends AppCompatActivity {
         rvLive = findViewById(R.id.rv_live);
         liveLayout = findViewById(R.id.live_section_layout);
 
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                    drawerLayout.closeDrawer(GravityCompat.START);
+                } else {
+                    // Agar drawer band hai to app band honi chahiye
+                    setEnabled(false); // Callback disable karo
+                    getOnBackPressedDispatcher().onBackPressed(); // System back trigger karo
+                }
+            }
+        });
+
         // 3. AB SHORTS & LIVE SETUP KARO
         setupLiveRecyclerView();
         fetchLiveVideos(0);
@@ -92,6 +110,11 @@ public class MainActivity extends AppCompatActivity {
 
         // 4. LAST ME CONTENT LOAD KARO
         loadAppContent();
+
+        PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(NotificationWorker.class, 24, TimeUnit.HOURS)
+                .build();
+
+        WorkManager.getInstance(this).enqueue(request);
     }
 
     // ====================== UI SETUP ======================
@@ -409,12 +432,5 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    @Override
-    public void onBackPressed() {
-        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-            drawerLayout.closeDrawer(GravityCompat.START);
-        } else {
-            super.onBackPressed();
-        }
-    }
+
 }

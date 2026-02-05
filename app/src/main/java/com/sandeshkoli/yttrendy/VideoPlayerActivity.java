@@ -1,9 +1,11 @@
 package com.sandeshkoli.yttrendy;
 
+import android.app.PictureInPictureParams;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.util.Rational;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -13,6 +15,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SwitchCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -45,6 +48,12 @@ public class VideoPlayerActivity extends AppCompatActivity {
     private VideoAdapter relatedAdapter;
     private List<VideoItem> relatedList = new ArrayList<>();
 
+    private SwitchCompat switchAutoplay; // New Variable
+
+
+    private View contentScroll; // ScrollView/LinearLayout jo niche hai
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -60,6 +69,9 @@ public class VideoPlayerActivity extends AppCompatActivity {
         TextView descView = findViewById(R.id.player_desc_view);
         rvRelated = findViewById(R.id.rv_related);
         relatedLoading = findViewById(R.id.related_loading);
+        contentScroll = findViewById(R.id.scroll_content_layout);
+        switchAutoplay = findViewById(R.id.switch_autoplay);
+
 
         titleView.setText(title);
         descView.setText(desc);
@@ -80,6 +92,7 @@ public class VideoPlayerActivity extends AppCompatActivity {
                     youTubePlayer.unMute();
                     youTubePlayer.setVolume(100);
                 }
+
             }
 
             @Override
@@ -90,6 +103,13 @@ public class VideoPlayerActivity extends AppCompatActivity {
                         youTubePlayer.unMute();
                         youTubePlayer.setVolume(100);
                     }, 500);
+                }
+                if (state == PlayerConstants.PlayerState.ENDED) {
+                    if (switchAutoplay.isChecked() && !relatedList.isEmpty()) {
+                        // Agli video uthao
+                        VideoItem nextVideo = relatedList.get(0);
+                        loadNewVideo(youTubePlayer, nextVideo);
+                    }
                 }
             }
         });
@@ -103,6 +123,63 @@ public class VideoPlayerActivity extends AppCompatActivity {
             // Title ke first 4 words use karenge relevance ke liye
             String query = getRelevanceQuery(title);
             fetchRelatedVideos(query, 0);
+        }
+    }
+
+    private void loadNewVideo(YouTubePlayer player, VideoItem item) {
+        // Player mein nayi video load karo
+        player.loadVideo(item.getId(), 0);
+
+        // UI Update karo
+        TextView titleView = findViewById(R.id.player_title_view);
+        TextView descView = findViewById(R.id.player_desc_view);
+
+        titleView.setText(item.getSnippet().getTitle());
+        descView.setText(item.getSnippet().getChannelTitle());
+
+        // Save/Share button ke liye purana intent update karna mushkil hai,
+        // isliye behtar hai Activity restart kardo (Smooth transition ke sath)
+
+        // OPTION A (Activity Reload - Easy & Safe):
+        Intent intent = new Intent(VideoPlayerActivity.this, VideoPlayerActivity.class);
+        intent.putExtra("VIDEO_ID", item.getId());
+        intent.putExtra("VIDEO_TITLE", item.getSnippet().getTitle());
+        intent.putExtra("VIDEO_DESC", item.getSnippet().getChannelTitle());
+        intent.putExtra("VIDEO_THUMB", item.getSnippet().getThumbnails().getHigh().getUrl());
+        startActivity(intent);
+        finish(); // Purani activity band
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out); // Smooth animation
+    }
+
+    @Override
+    protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            Rational aspectRatio = new Rational(16, 9);
+            PictureInPictureParams params = new PictureInPictureParams.Builder()
+                    .setAspectRatio(aspectRatio)
+                    .build();
+            enterPictureInPictureMode(params);
+        }
+    }
+
+    // 2. PiP Mode change hone par UI Hide/Show karo
+    @Override
+    public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+
+        if (isInPictureInPictureMode) {
+            // PiP Mode ON: Hide everything except player
+            contentScroll.setVisibility(View.GONE);
+            youTubePlayerView.wrapContent(); // Player chhota karo
+
+            // Custom UI ke controls bhi chhupane padenge
+            findViewById(R.id.player_title_view).setVisibility(View.GONE); // Example
+            // Note: Library automatically controls hide karti hai aksar PiP me
+        } else {
+            // PiP Mode OFF: Show everything
+            contentScroll.setVisibility(View.VISIBLE);
+            youTubePlayerView.matchParent(); // Normal size
         }
     }
 

@@ -2,6 +2,10 @@ package com.sandeshkoli.yttrendy.utils;
 
 import android.app.Activity;
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper; // <--- Ye zaroori hai
+
+
 import androidx.annotation.NonNull;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.FullScreenContentCallback;
@@ -30,6 +34,11 @@ public class AdManager {
                     @Override
                     public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
                         mInterstitialAd = null;
+
+                        // Naye tarike se Handler likhein (Looper.getMainLooper() ke sath)
+                        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                            loadInterstitial(context);
+                        }, 5000);
                     }
                 });
     }

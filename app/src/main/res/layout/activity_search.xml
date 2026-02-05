@@ -5,17 +5,16 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:fitsSystemWindows="true"
-
     android:background="@color/background_dark">
 
-    <!-- Search Toolbar -->
+    <!-- 1. SEARCH TOOLBAR -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="60dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingHorizontal="16dp"
-        android:background="@color/card_background_dark"
+        android:background="@color/cardview_dark_background"
         android:elevation="4dp">
 
         <!-- Back Button -->
@@ -26,7 +25,6 @@
             android:src="@drawable/ic_launcher_foreground"
             android:rotation="180"
             app:tint="@color/text_secondary_dark" />
-        <!-- (Note: Back icon ke liye rotation use kiya ya koi bhi arrow icon laga lena) -->
 
         <!-- Search Input -->
         <EditText
@@ -40,7 +38,8 @@
             android:textColorHint="@color/text_secondary_dark"
             android:layout_marginStart="16dp"
             android:imeOptions="actionSearch"
-            android:inputType="text"/>
+            android:inputType="text"
+            android:maxLines="1"/>
 
         <!-- Search Action Button -->
         <ImageView
@@ -52,7 +51,7 @@
 
     </LinearLayout>
 
-    <!-- Filter Bar (Optional but cool) -->
+    <!-- 2. FILTER BAR -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -70,20 +69,36 @@
             android:drawableTint="@color/accent_blue"/>
     </LinearLayout>
 
-    <!-- Loading -->
-    <ProgressBar
-        android:id="@+id/search_loading"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:visibility="gone"
-        android:layout_marginTop="20dp"/>
-
-    <!-- Results List -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/search_recycler_view"
+    <!-- 3. CONTENT AREA (Results & History Overlay) -->
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:padding="8dp"/>
+        android:layout_height="match_parent">
 
+        <!-- A. Search Results List -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/search_recycler_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="8dp"
+            android:clipToPadding="false"/>
+
+        <!-- B. Loading Spinner -->
+        <ProgressBar
+            android:id="@+id/search_loading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:visibility="gone"/>
+
+        <!-- C. HISTORY LIST (Overlay on top) -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/history_recycler_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/background_dark"
+            android:visibility="gone"
+            android:elevation="10dp"
+            android:padding="8dp"/>
+
+    </RelativeLayout>
 </LinearLayout>
