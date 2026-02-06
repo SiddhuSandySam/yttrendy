@@ -267,8 +267,13 @@ public class VideoPlayerActivity extends AppCompatActivity {
         btnShare.setOnClickListener(v -> {
             Intent shareIntent = new Intent(Intent.ACTION_SEND);
             shareIntent.setType("text/plain");
-            shareIntent.putExtra(Intent.EXTRA_TEXT, "Watch this amazing video: https://youtu.be/" + videoId);
-            startActivity(Intent.createChooser(shareIntent, "Share"));
+            // "ViralStream" brand name add kiya aur message improve kiya
+            String shareMessage = "Check out this amazing discovery on ViralStream: \n\n" +
+                    title + "\n" +
+                    "https://www.youtube.com/watch?v=" + videoId;
+
+            shareIntent.putExtra(Intent.EXTRA_TEXT, shareMessage);
+            startActivity(Intent.createChooser(shareIntent, "Share via"));
         });
     }
 

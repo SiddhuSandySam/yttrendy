@@ -173,7 +173,8 @@ public class MainActivity extends AppCompatActivity {
             } else if (id == R.id.nav_share) {
                 Intent shareIntent = new Intent(Intent.ACTION_SEND);
                 shareIntent.setType("text/plain");
-                shareIntent.putExtra(Intent.EXTRA_TEXT, "Download ViralVideo for curated trending content! \n\n https://play.google.com/store/apps/details?id=" + getPackageName());
+                // "ViralVideo" ko "ViralStream" kiya aur description clean kiya
+                shareIntent.putExtra(Intent.EXTRA_TEXT, "Check out ViralStream for the latest viral trends and videos! \n\n https://play.google.com/store/apps/details?id=" + getPackageName());
                 startActivity(Intent.createChooser(shareIntent, "Share via"));
             } else if (id == R.id.nav_rate) {
                 try {

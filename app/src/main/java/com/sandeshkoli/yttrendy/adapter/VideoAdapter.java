@@ -121,8 +121,8 @@ public class VideoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
     }
     private void shareVideo(Context ctx, String vId, String vTitle) {
         // FIX: Missing URL part fixed
-        String youtubeUrl = "https://www.youtube.com/watch?v=" + vId;
-        String msg = vTitle + "\n\nWatch here: " + youtubeUrl + "\n\nvia ViralVideo App";
+        String videoUrl = "https://www.youtube.com/watch?v=" + vId;
+        String msg = vTitle + "\n\nWatch here: " + videoUrl + "\n\nvia ViralStream App";
 
         Intent intent = new Intent(Intent.ACTION_SEND);
         intent.setType("text/plain");
