@@ -30,6 +30,7 @@ android {
         resValue "string", "yt_api_key_1", properties.getProperty("YT_API_KEY_1", "")
         resValue "string", "yt_api_key_2", properties.getProperty("YT_API_KEY_2", "")
         resValue "string", "yt_api_key_3", properties.getProperty("YT_API_KEY_3", "")
+        resValue "string", "yt_api_key_4", properties.getProperty("YT_API_KEY_4", "")
     }
 
     buildTypes {

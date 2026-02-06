@@ -39,7 +39,7 @@ public class RetrofitClient {
                 public Response intercept(Chain chain) throws IOException {
                     Response response = chain.proceed(chain.request());
                     return response.newBuilder()
-                            .header("Cache-Control", "public, max-age=7200") // 2 hours in seconds
+                            .header("Cache-Control", "public, max-age=86400") // 2 hours in seconds
                             .removeHeader("Pragma")
                             .build();
                 }

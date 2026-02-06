@@ -12,7 +12,8 @@ public class KeyManager {
         String[] keys = {
                 context.getString(R.string.yt_api_key_1),
                 context.getString(R.string.yt_api_key_2),
-                context.getString(R.string.yt_api_key_3)
+                context.getString(R.string.yt_api_key_3),
+                context.getString(R.string.yt_api_key_4)
         };
         SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         int index = prefs.getInt(KEY_INDEX, 0);
