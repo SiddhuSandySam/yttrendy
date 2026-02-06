@@ -17,3 +17,20 @@
 
 # YouTube Player Library rules
 -keep class com.pierfrancescosoffritti.androidyoutubeplayer.** { *; }
+
+# Firebase Rules
+-keepattributes Signature
+-keepattributes *Annotation*
+-dontwarn com.google.firebase.**
+
+# GSON and Models (Most Important)
+# Isse tumhare models ke naam change nahi honge
+-keep class com.sandeshkoli.yttrendy.models.** { *; }
+-keep class com.google.gson.** { *; }
+
+# YouTube Player Library Rules
+-keep class com.pierfrancescosoffritti.androidyoutubeplayer.** { *; }
+
+# Room Database Rules
+-keep class * extends androidx.room.RoomDatabase
+-dontwarn androidx.room.**
