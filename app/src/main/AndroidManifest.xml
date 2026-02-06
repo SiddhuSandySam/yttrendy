@@ -5,6 +5,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Internet ke alava ye do bhi dalo -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- Retrofit Caching ke liye -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" /> <!-- Phone restart ke baad notifications ke liye -->
 
     <application
         android:allowBackup="true"
@@ -14,7 +17,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.YTTrendy">
+        android:theme="@style/Theme.ViralStream">
         <activity
             android:name=".SavedVideosActivity"
             android:exported="false" />
