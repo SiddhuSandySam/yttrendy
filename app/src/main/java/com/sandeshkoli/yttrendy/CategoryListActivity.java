@@ -7,7 +7,6 @@ import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -15,18 +14,12 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.gson.Gson;
 import com.sandeshkoli.yttrendy.adapter.VideoAdapter;
 import com.sandeshkoli.yttrendy.models.VideoItem;
-import com.sandeshkoli.yttrendy.models.VideoResponse;
-import com.sandeshkoli.yttrendy.network.RetrofitClient;
-import com.sandeshkoli.yttrendy.network.YouTubeApiService;
+import com.sandeshkoli.yttrendy.utils.FirebaseDataManager;
 import com.sandeshkoli.yttrendy.utils.JsonCacheManager;
-import com.sandeshkoli.yttrendy.utils.KeyManager;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
+import java.util.Map;
 
 public class CategoryListActivity extends AppCompatActivity {
 
@@ -37,198 +30,92 @@ public class CategoryListActivity extends AppCompatActivity {
 
     private String categoryId, categoryName;
     private TextView btnFilter, titleView;
-    private ImageView btnBack;
+    private String currentRegion = "IN"; // Default
 
-    private String API_KEY;
-    // Filters State
-    private String currentOrder = "relevance";
-    private String publishedAfter = null;
-    private String videoDuration = "any";
-    private String eventType = "completed"; // <--- YE LINE MISSING THI
-
-    private boolean isFilterApplied = false; // Flag to check if we need Search API
+    private JsonCacheManager cacheManager;
+    private Gson gson = new Gson();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_category_list);
 
+        cacheManager = new JsonCacheManager(this);
+        currentRegion = getSharedPreferences("PREFS", MODE_PRIVATE).getString("region", "IN");
+
         categoryId = getIntent().getStringExtra("CAT_ID");
         categoryName = getIntent().getStringExtra("CAT_NAME");
 
-        API_KEY = KeyManager.getApiKey(this);
-
-        // Init Views (Make sure IDs match your XML)
         titleView = findViewById(R.id.toolbar_title);
-        btnBack = findViewById(R.id.btn_menu);
-        btnFilter = findViewById(R.id.btn_filter);
-        progressBar = findViewById(R.id.search_loading); // XML me ProgressBar add karlena agar nahi hai
+        progressBar = findViewById(R.id.category_list_progress);
         recyclerView = findViewById(R.id.vertical_recycler_view);
+        btnFilter = findViewById(R.id.btn_filter);
 
         if(titleView != null) titleView.setText(categoryName);
-        if(btnBack != null) btnBack.setOnClickListener(v -> finish());
-        if(btnFilter != null) btnFilter.setOnClickListener(v -> showFilterMenu());
+        findViewById(R.id.btn_menu).setOnClickListener(v -> finish()); // Back button
+
+        if(btnFilter != null) btnFilter.setOnClickListener(v -> {
+            // Future logic for filters if needed
+        });
 
         setupRecyclerView();
-
-        // Pehli baar load karo
-        decideAndFetchData(0);
+        decideAndFetchData();
     }
 
     private void setupRecyclerView() {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-
-        // GALTI YAHAN THI: Tum purana constructor use kar rahe the
-        // adapter = new VideoAdapter(this, videoList, listener);  <-- YE GALAT HAI
-
-        // SAHI CODE (Pass 'true' for Full Width):
         adapter = new VideoAdapter(this, videoList, true, item -> {
             Intent intent = new Intent(this, VideoPlayerActivity.class);
             intent.putExtra("VIDEO_ID", item.getId());
             intent.putExtra("VIDEO_TITLE", item.getSnippet().getTitle());
             intent.putExtra("VIDEO_DESC", item.getSnippet().getChannelTitle());
+            intent.putExtra("VIDEO_THUMB", item.getSnippet().getThumbnails().getHigh().getUrl());
             startActivity(intent);
         });
-
         recyclerView.setAdapter(adapter);
     }
 
-    private void showFilterMenu() {
-        PopupMenu popup = new PopupMenu(this, btnFilter);
-        popup.getMenuInflater().inflate(R.menu.menu_filter, popup.getMenu());
-
-        popup.setOnMenuItemClickListener(item -> {
-            item.setChecked(true);
-            int id = item.getItemId();
-
-            // Default: Hum maan ke chalte hain filter lag gaya hai
-            isFilterApplied = true;
-
-            // 1. TIME FILTERS
-            if (id == R.id.time_hour) setTimeFilter(1);
-            else if (id == R.id.time_today) setTimeFilter(24);
-            else if (id == R.id.time_week) setTimeFilter(24 * 7);
-            else if (id == R.id.time_any) {
-                publishedAfter = null;
-                // Agar koi aur filter nahi hai, toh Trending API pe wapas ja sakte hain
-            }
-
-            // 2. SORT FILTERS
-            else if (id == R.id.sort_views) currentOrder = "viewCount";
-            else if (id == R.id.sort_date) currentOrder = "date";
-            else if (id == R.id.sort_rating) currentOrder = "rating";
-            else if (id == R.id.sort_relevance) currentOrder = "relevance";
-
-                // 3. DURATION FILTERS
-            else if (id == R.id.dur_short) videoDuration = "short";
-            else if (id == R.id.dur_long) videoDuration = "long";
-            else if (id == R.id.dur_any) videoDuration = "any";
-
-                // 4. CONTENT TYPE FILTERS (Live vs All)
-            else if (id == R.id.filter_live) eventType = "live";
-            else if (id == R.id.filter_all) {
-                eventType = "completed";
-                // Agar user ne sab default kar diya, toh flag reset kardo
-                if (publishedAfter == null && currentOrder.equals("relevance") && videoDuration.equals("any")) {
-                    isFilterApplied = false;
-                }
-            }
-
-            // Refresh Data with New Filters
-            decideAndFetchData(0);
-            return true;
-        });
-        popup.show();
-    }
-
-    private void setTimeFilter(int hoursBack) {
-        android.text.format.Time t = new android.text.format.Time();
-        t.setToNow();
-        t.toMillis(true);
-        long now = t.toMillis(true);
-        long past = now - (hoursBack * 3600 * 1000L);
-        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-        sdf.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
-        publishedAfter = sdf.format(new java.util.Date(past));
-    }
-
-    private void decideAndFetchData(int retryCount) {
-        String currentKey = KeyManager.getApiKey(this);
-        YouTubeApiService apiService = RetrofitClient.getRetrofitInstance(this).create(YouTubeApiService.class);
-        String cacheKey = "view_more_" + (categoryId != null ? categoryId : categoryName) + "_" + currentOrder + "_" + videoDuration;
-        JsonCacheManager cm = new JsonCacheManager(this);
-        Gson gson = new Gson();
-
-        Callback<VideoResponse> callback = new Callback<VideoResponse>() {
-            @Override
-            public void onResponse(Call<VideoResponse> call, Response<VideoResponse> response) {
-                if (response.code() == 403 && retryCount < KeyManager.getKeyCount()) {
-                    KeyManager.rotateKey(CategoryListActivity.this);
-                    decideAndFetchData(retryCount + 1); // RETRY
-                    return;
-                }
-                handleApiResponse(response, cacheKey, cm, gson);
-            }
-            @Override
-            public void onFailure(Call<VideoResponse> call, Throwable t) {
-                loadLocalCache(cacheKey, videoList, adapter, gson, cm);
-            }
-        };
-
-        Call<VideoResponse> call;
+    private void decideAndFetchData() {
         String query = categoryName;
-        String order = currentOrder;
+        String categoryIdParam = (categoryId != null && categoryId.matches("\\d+")) ? categoryId : null;
 
-        // --- FIX: Logic to handle MOST_VIEWED/MOST_LIKED from Home Screen ---
-        if ("MOST_VIEWED".equals(categoryId) || "MOST_VIEWED".equals(categoryName)) {
-            query = "most popular videos";
-            order = "viewCount";
-            // Filter lagne par bhi viewCount hi rahega
-        }
-        else if ("MOST_LIKED".equals(categoryId) || "MOST_LIKED".equals(categoryName)) {
-            query = "top rated videos";
-            order = "rating";
-            // Filter lagne par bhi rating hi rahega
-        }
-        else if (categoryName.equals("🔥 Trending Now")) {
-            query = "trending india";
-        }
-        // --- FIX END ---
+        // 🔥 Region-specific cache key
+        String cacheKey = "view_more_" + (categoryIdParam != null ? categoryIdParam : categoryName.replaceAll("\\s+", "_").toLowerCase()) + "_" + currentRegion;
 
+        // 1. Check Local Cache First
+        String localJson = cacheManager.getCache(cacheKey);
+        if (localJson != null) {
+            android.util.Log.d("DATA_SOURCE_TRACKER", "📱 SOURCE: [Local Mobile Cache] View More: " + categoryName);
+            handleFirebaseResponse(gson.fromJson(localJson, Map.class));
+            return;
+        }
 
-        // 1. CHEAP CALL: Agar filter nahi laga aur humare paas Category ID hai
-        if (!isFilterApplied && categoryId != null && categoryId.matches("\\d+")) {
-            apiService.getVideos("snippet,statistics", "mostPopular", "IN", categoryId, 50, currentKey).enqueue(callback);
-        }
-        // 2. EXPENSIVE CALL: Search ya Unique Shelves ke liye
-        else {
-            apiService.searchVideos("snippet", query, order, publishedAfter, videoDuration, eventType, "video", 50, currentKey).enqueue(callback);
-        }
+        if (progressBar != null) progressBar.setVisibility(View.VISIBLE);
+
+        // 2. Fetch from Firebase with Region
+        FirebaseDataManager.getVideosFromFirebase(query, categoryIdParam, currentRegion)
+                .addOnCompleteListener(task -> {
+                    if (progressBar != null) progressBar.setVisibility(View.GONE);
+                    if (task.isSuccessful()) {
+                        Map<String, Object> result = (Map<String, Object>) task.getResult().getData();
+                        String source = (String) result.get("source");
+                        android.util.Log.d("DATA_SOURCE_TRACKER", "📊 VIEW_MORE SOURCE: [" + source.toUpperCase() + "] Region: " + currentRegion);
+
+                        cacheManager.saveCache(cacheKey, gson.toJson(result));
+                        handleFirebaseResponse(result);
+                    }
+                });
     }
-    private void handleApiResponse(Response<VideoResponse> response, String key, JsonCacheManager cm, com.google.gson.Gson gson) {
-        if(progressBar != null) progressBar.setVisibility(View.GONE);
-        if (response.isSuccessful() && response.body() != null) {
-            cm.saveCache(key, gson.toJson(response.body()));
-            videoList.addAll(response.body().getItems());
-            adapter.notifyDataSetChanged();
-        } else {
-            loadLocalCache(key, videoList, adapter, gson, cm);
-        }
-    }
-    // Isse Activity class ke andar sabse niche paste kar do
-    private void loadLocalCache(String key, List<VideoItem> list, RecyclerView.Adapter adapter, com.google.gson.Gson gson, JsonCacheManager cm) {
-        String cachedJson = cm.getCache(key);
-        if (cachedJson != null) {
-            try {
-                VideoResponse cachedData = gson.fromJson(cachedJson, VideoResponse.class);
-                if (cachedData != null && cachedData.getItems() != null) {
-                    list.clear(); // Purani list saaf karo
-                    list.addAll(cachedData.getItems()); // Cache wala data bharo
-                    adapter.notifyDataSetChanged(); // UI update karo
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
+
+    private void handleFirebaseResponse(Map<String, Object> result) {
+        List<Map<String, Object>> items = (List<Map<String, Object>>) result.get("items");
+        if (items != null) {
+            videoList.clear();
+            for (Map<String, Object> itemMap : items) {
+                VideoItem item = gson.fromJson(gson.toJson(itemMap), VideoItem.class);
+                videoList.add(item);
             }
+            adapter.notifyDataSetChanged();
         }
     }
 }

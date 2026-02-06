@@ -1,5 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
+    // YE LINE ADD KARO
+    id 'com.google.gms.google-services'
 }
 
 android {
@@ -26,11 +28,7 @@ android {
             properties.load(propertiesFile.newDataInputStream())
         }
 
-        // Ye line R.string.yt_api_key banayegi
-        resValue "string", "yt_api_key_1", properties.getProperty("YT_API_KEY_1", "")
-        resValue "string", "yt_api_key_2", properties.getProperty("YT_API_KEY_2", "")
-        resValue "string", "yt_api_key_3", properties.getProperty("YT_API_KEY_3", "")
-        resValue "string", "yt_api_key_4", properties.getProperty("YT_API_KEY_4", "")
+
     }
 
     buildTypes {
@@ -59,7 +57,7 @@ dependencies {
     // For API Calls (Retrofit)
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
-
+    implementation "androidx.swiperefreshlayout:swiperefreshlayout:1.1.0"
     // For Image Loading (Glide)
     implementation 'com.github.bumptech.glide:glide:4.16.0'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0' // Glide ke liye ye zaroori hai Java me
@@ -79,6 +77,12 @@ dependencies {
     implementation 'com.google.android.gms:play-services-ads:23.0.0'
 
     implementation 'androidx.work:work-runtime:2.8.1'
+
+    implementation platform('com.google.firebase:firebase-bom:33.1.2')
+
+    // Firebase Functions aur Auth (Auth zaroori hai kyunki humne backend me security rakhi hai)
+    implementation 'com.google.firebase:firebase-functions'
+    implementation 'com.google.firebase:firebase-auth'
 
 
 }

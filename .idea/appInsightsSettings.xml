@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.sandeshkoli.yttrendy" />
+                  <option name="mobileSdkAppId" value="1:106276656646:android:d94e1e50df3c66c7629587" />
+                  <option name="projectId" value="viralstream-8cf0f" />
+                  <option name="projectNumber" value="106276656646" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

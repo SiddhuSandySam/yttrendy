@@ -1,7 +1,6 @@
 package com.sandeshkoli.yttrendy;
 
 import android.content.Intent;
-import android.content.res.ColorStateList; // Use this for setting color to Button Tint
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
@@ -26,27 +25,23 @@ import androidx.work.WorkManager;
 
 import com.facebook.shimmer.ShimmerFrameLayout;
 import com.google.android.material.navigation.NavigationView;
-import com.google.gson.Gson; // Gson ka import
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.gson.Gson;
 import com.sandeshkoli.yttrendy.adapter.ShortsAdapter;
 import com.sandeshkoli.yttrendy.adapter.VideoAdapter;
 import com.sandeshkoli.yttrendy.models.VideoItem;
-import com.sandeshkoli.yttrendy.models.VideoResponse;
-import com.sandeshkoli.yttrendy.network.RetrofitClient;
-import com.sandeshkoli.yttrendy.network.YouTubeApiService;
 import com.sandeshkoli.yttrendy.utils.AdManager;
 import com.sandeshkoli.yttrendy.utils.CategoryHelper;
+import com.sandeshkoli.yttrendy.utils.FirebaseDataManager;
 import com.sandeshkoli.yttrendy.utils.JsonCacheManager;
-import com.sandeshkoli.yttrendy.utils.KeyManager;
 import com.sandeshkoli.yttrendy.utils.NotificationWorker;
+import com.sandeshkoli.yttrendy.utils.RegionHelper;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -67,16 +62,27 @@ public class MainActivity extends AppCompatActivity {
     private List<VideoItem> shortsList = new ArrayList<>();
     private LinearLayout shortsLayout;
 
+    // Region & Cache Variables
+    private String currentRegion = "IN";
+    private TextView btnRegion;
+    private JsonCacheManager cacheManager;
+    private Gson gson = new Gson();
+
+    private androidx.swiperefreshlayout.widget.SwipeRefreshLayout swipeRefreshLayout;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        FirebaseApp.initializeApp(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // 1. SABSE PEHLE KEY INITIALIZE KARO
-        KeyManager.getApiKey(this); // KeyManager ko context de diya
-        AdManager.init(this);
+        cacheManager = new JsonCacheManager(this);
 
-        // 2. PHIR VIEWS INIT KARO
+        // 1. REGION SETUP (Saved preference uthao)
+        currentRegion = getSharedPreferences("PREFS", MODE_PRIVATE).getString("region", "IN");
+
+        // 2. VIEWS INIT
         drawerLayout = findViewById(R.id.drawer_layout);
         contentContainer = findViewById(R.id.main_content_container);
         chipsContainer = findViewById(R.id.chips_container);
@@ -85,39 +91,240 @@ public class MainActivity extends AppCompatActivity {
         shortsLayout = findViewById(R.id.shorts_section_layout);
         rvLive = findViewById(R.id.rv_live);
         liveLayout = findViewById(R.id.live_section_layout);
+        btnRegion = findViewById(R.id.btn_region_select);
+        swipeRefreshLayout = findViewById(R.id.swipe_refresh);
 
+
+        AdManager.init(this);
+        updateRegionUI(); // Toolbar par sahi flag dikhao
+
+        // 3. ANONYMOUS LOGIN (Backend Security bypass ke liye)
+        FirebaseAuth.getInstance().signInAnonymously()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        android.util.Log.d("AUTH", "Firebase Auth Success");
+                        loadAppFlow();
+                    } else {
+                        android.util.Log.e("AUTH", "Auth Failed: " + task.getException().getMessage());
+                        loadAppFlow(); // Fail hone par bhi try karte hain
+                    }
+                });
+
+        // 4. BACK PRESS HANDLER
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
                 if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
                     drawerLayout.closeDrawer(GravityCompat.START);
                 } else {
-                    // Agar drawer band hai to app band honi chahiye
-                    setEnabled(false); // Callback disable karo
-                    getOnBackPressedDispatcher().onBackPressed(); // System back trigger karo
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
                 }
             }
         });
 
-        // 3. AB SHORTS & LIVE SETUP KARO
+        // Region Button Click
+        if (btnRegion != null) {
+            btnRegion.setOnClickListener(v -> showRegionSelectionMenu());
+        }
+
+        // 5. NOTIFICATION WORKER
+        PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(NotificationWorker.class, 24, TimeUnit.HOURS).build();
+        WorkManager.getInstance(this).enqueue(request);
+
+        swipeRefreshLayout.setOnRefreshListener(() -> {
+            android.util.Log.d("DATA_SOURCE_TRACKER", "🔄 User Force Refresh: Clearing Mobile Cache");
+
+            // 1. Mobile Cache Poora Saaf Karo
+            cacheManager.clearAll();
+
+            // 2. Data Dobara Load Karo (Ab ye direct Firebase/API se aayega)
+            loadAppFlow();
+
+            // 3. Spinner Band Karo
+            swipeRefreshLayout.setRefreshing(false);
+
+            Toast.makeText(this, "Content Refreshed!", Toast.LENGTH_SHORT).show();
+        });
+    }
+
+    private void loadAppFlow() {
         setupLiveRecyclerView();
-        fetchLiveVideos(0);
+        fetchLiveVideos();
+
         setupShortsRecyclerView();
-        fetchShorts(0);
+        fetchShorts();
 
         setupToolbar();
         setupNavigationDrawer();
-
-        // 4. LAST ME CONTENT LOAD KARO
         loadAppContent();
-
-        PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(NotificationWorker.class, 24, TimeUnit.HOURS)
-                .build();
-
-        WorkManager.getInstance(this).enqueue(request);
     }
 
-    // ====================== UI SETUP ======================
+    // ====================== REGION SELECTION LOGIC ======================
+
+    private void showRegionSelectionMenu() {
+        PopupMenu popup = new PopupMenu(this, btnRegion);
+        Map<String, String> regions = RegionHelper.getAvailableRegions();
+        for (String name : regions.keySet()) {
+            popup.getMenu().add(name);
+        }
+
+        popup.setOnMenuItemClickListener(item -> {
+            String selectedName = item.getTitle().toString();
+            String selectedCode = regions.get(selectedName);
+
+            // Choice save karo
+            getSharedPreferences("PREFS", MODE_PRIVATE).edit().putString("region", selectedCode).apply();
+            currentRegion = selectedCode;
+
+            // Activity Refresh taaki naye region ka data load ho
+            recreate();
+            return true;
+        });
+        popup.show();
+    }
+
+    private void updateRegionUI() {
+        if (btnRegion == null) return;
+        Map<String, String> regions = RegionHelper.getAvailableRegions();
+        for (Map.Entry<String, String> entry : regions.entrySet()) {
+            if (entry.getValue().equals(currentRegion)) {
+                // Example: "🇮🇳 IN"
+                btnRegion.setText(entry.getKey().split(" ")[0] + " " + currentRegion);
+                break;
+            }
+        }
+    }
+
+    // ====================== DATA FETCH LOGIC (FIREBASE + REGION) ======================
+
+    private void fetchData(String catIdOrKeyword, List<VideoItem> list, VideoAdapter adapter, ProgressBar bar, int retryCount) {
+        String query = (catIdOrKeyword == null) ? "trending now" : catIdOrKeyword;
+        String categoryId = (catIdOrKeyword != null && catIdOrKeyword.matches("\\d+")) ? catIdOrKeyword : null;
+
+        String cacheKey = (categoryId != null) ? "cat_" + categoryId + "_" + currentRegion :
+                "search_" + query.replaceAll("\\s+", "_").toLowerCase() + "_" + currentRegion;
+
+        // 1. Check Local Cache
+        String localJson = cacheManager.getCache(cacheKey);
+        if (localJson != null) {
+            android.util.Log.d("DATA_SOURCE_TRACKER", "📱 SOURCE: [Local Cache] | Key: " + cacheKey);
+            updateUIList(gson.fromJson(localJson, Map.class), list, adapter, bar, null);
+            checkAllLoaded();
+            return;
+        }
+
+        // 2. Fetch from Firebase
+        FirebaseDataManager.getVideosFromFirebase(query, categoryId, currentRegion)
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        Map<String, Object> result = (Map<String, Object>) task.getResult().getData();
+                        String source = (String) result.get("source");
+                        android.util.Log.d("DATA_SOURCE_TRACKER", "🌐 SOURCE: [" + source.toUpperCase() + "] | Key: " + cacheKey);
+
+                        cacheManager.saveCache(cacheKey, gson.toJson(result));
+                        updateUIList(result, list, adapter, bar, null);
+                        checkAllLoaded();
+                    } else {
+                        // 🔥 RETRY LOGIC: Agar fail hua aur humne 3 baar try nahi kiya hai
+                        if (retryCount < 3) {
+                            int delay = (retryCount + 1) * 1000; // 1s, 2s, 3s ka delay
+                            android.util.Log.w("DATA_SOURCE_TRACKER", "⚠️ RETRYING (" + (retryCount + 1) + ") for: " + cacheKey);
+                            new android.os.Handler().postDelayed(() ->
+                                    fetchData(catIdOrKeyword, list, adapter, bar, retryCount + 1), delay);
+                        } else {
+                            android.util.Log.e("DATA_SOURCE_TRACKER", "❌ FINAL FAIL: " + cacheKey);
+                            if (bar != null) bar.setVisibility(View.GONE);
+                            checkAllLoaded();
+                        }
+                    }
+                });
+    }
+    private void fetchLiveVideos() {
+        String cacheKey = "main_live_list_" + currentRegion;
+        String query = "live news gaming";
+
+        String localJson = cacheManager.getCache(cacheKey);
+        if (localJson != null) {
+            android.util.Log.d("DATA_SOURCE_TRACKER", "📱 SOURCE: [Local Cache] Live List");
+            updateUIList(gson.fromJson(localJson, Map.class), liveList, liveAdapter, null, liveLayout);
+            return;
+        }
+
+        FirebaseDataManager.getVideosFromFirebase(query, null, currentRegion)
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        Map<String, Object> result = (Map<String, Object>) task.getResult().getData();
+                        cacheManager.saveCache(cacheKey, gson.toJson(result));
+                        updateUIList(result, liveList, liveAdapter, null, liveLayout);
+                    }
+                });
+    }
+
+    private void fetchShorts() {
+        String cacheKey = "main_shorts_list_" + currentRegion;
+        String query = "trending shorts";
+
+        String localJson = cacheManager.getCache(cacheKey);
+        if (localJson != null) {
+            android.util.Log.d("DATA_SOURCE_TRACKER", "📱 SOURCE: [Local Cache] Shorts List");
+            updateShortsUI(gson.fromJson(localJson, Map.class));
+            return;
+        }
+
+        FirebaseDataManager.getVideosFromFirebase(query, null, currentRegion)
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        Map<String, Object> result = (Map<String, Object>) task.getResult().getData();
+                        cacheManager.saveCache(cacheKey, gson.toJson(result));
+                        updateShortsUI(result);
+                    }
+                });
+    }
+
+    private void updateUIList(Map<String, Object> result, List<VideoItem> list, RecyclerView.Adapter adapter, ProgressBar bar, View layoutToShow) {
+        List<Map<String, Object>> items = (List<Map<String, Object>>) result.get("items");
+        if (items != null) {
+            list.clear();
+            for (Map<String, Object> itemMap : items) {
+                VideoItem item = gson.fromJson(gson.toJson(itemMap), VideoItem.class);
+                list.add(item);
+            }
+            adapter.notifyDataSetChanged();
+            if (layoutToShow != null) layoutToShow.setVisibility(View.VISIBLE);
+        }
+        if (bar != null) bar.setVisibility(View.GONE);
+    }
+
+    private void updateShortsUI(Map<String, Object> result) {
+        List<Map<String, Object>> items = (List<Map<String, Object>>) result.get("items");
+        if (items != null) {
+            shortsList.clear();
+            for (Map<String, Object> itemMap : items) {
+                VideoItem item = gson.fromJson(gson.toJson(itemMap), VideoItem.class);
+                shortsList.add(item);
+            }
+            shortsAdapter.notifyDataSetChanged();
+            shortsLayout.setVisibility(View.VISIBLE);
+        }
+    }
+
+    // ====================== UI SETUP METHODS ======================
+
+    private void loadAppContent() {
+        if (shimmerContainer != null) shimmerContainer.startShimmer();
+        Map<String, String> categories = CategoryHelper.getCategories();
+        totalSections = categories.size();
+        sectionsLoaded = 0;
+
+        contentContainer.removeAllViews(); // Purane views saaf karo (Important for recreate)
+        chipsContainer.removeAllViews();
+
+        for (Map.Entry<String, String> entry : categories.entrySet()) {
+            addChip(entry.getKey());
+            addSection(entry.getKey(), entry.getValue());
+        }
+    }
 
     private void setupLiveRecyclerView() {
         rvLive.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
@@ -134,7 +341,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupShortsRecyclerView() {
         rvShorts.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-
         shortsAdapter = new ShortsAdapter(this, shortsList, item -> {
             Intent intent = new Intent(this, VideoPlayerActivity.class);
             intent.putExtra("VIDEO_ID", item.getId());
@@ -147,21 +353,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupToolbar() {
-        ImageView btnMenu = findViewById(R.id.btn_menu);
-        ImageView btnSearch = findViewById(R.id.btn_search);
-        TextView btnFilter = findViewById(R.id.btn_filter);
-
-        btnMenu.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
-        btnSearch.setOnClickListener(v -> startActivity(new Intent(this, SearchActivity.class)));
-
-        // Filter button hidden hai UI me, phir bhi logic dal diya
-        if(btnFilter.getVisibility() == View.VISIBLE) {
-            btnFilter.setOnClickListener(v -> {
-                PopupMenu popup = new PopupMenu(this, btnFilter);
-                popup.getMenuInflater().inflate(R.menu.menu_filter, popup.getMenu());
-                popup.show();
-            });
-        }
+        findViewById(R.id.btn_menu).setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
+        findViewById(R.id.btn_search).setOnClickListener(v -> startActivity(new Intent(this, SearchActivity.class)));
     }
 
     private void setupNavigationDrawer() {
@@ -169,19 +362,12 @@ public class MainActivity extends AppCompatActivity {
         navigationView.setNavigationItemSelectedListener(item -> {
             int id = item.getItemId();
             if (id == R.id.nav_saved) {
-                startActivity(new Intent(MainActivity.this, SavedVideosActivity.class));
+                startActivity(new Intent(this, SavedVideosActivity.class));
             } else if (id == R.id.nav_share) {
                 Intent shareIntent = new Intent(Intent.ACTION_SEND);
                 shareIntent.setType("text/plain");
-                // "ViralVideo" ko "ViralStream" kiya aur description clean kiya
-                shareIntent.putExtra(Intent.EXTRA_TEXT, "Check out ViralStream for the latest viral trends and videos! \n\n https://play.google.com/store/apps/details?id=" + getPackageName());
+                shareIntent.putExtra(Intent.EXTRA_TEXT, "Check out ViralStream for latest trends! https://play.google.com/store/apps/details?id=" + getPackageName());
                 startActivity(Intent.createChooser(shareIntent, "Share via"));
-            } else if (id == R.id.nav_rate) {
-                try {
-                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + getPackageName())));
-                } catch (Exception e) {
-                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + getPackageName())));
-                }
             }
             drawerLayout.closeDrawer(GravityCompat.START);
             return true;
@@ -193,13 +379,10 @@ public class MainActivity extends AppCompatActivity {
         btn.setText(categoryName);
         btn.setTextColor(Color.WHITE);
         btn.setBackgroundResource(R.drawable.bg_filter_button);
-
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, 100);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, 100);
         params.setMargins(0, 0, 20, 0);
         btn.setLayoutParams(params);
         btn.setPadding(40, 0, 40, 0);
-
         btn.setOnClickListener(v -> {
             AdManager.showInterstitial(this, () -> {
                 Intent intent = new Intent(this, CategoryPageActivity.class);
@@ -219,9 +402,7 @@ public class MainActivity extends AppCompatActivity {
 
         titleTv.setText(title);
         rv.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-
         List<VideoItem> list = new ArrayList<>();
-
         VideoAdapter adapter = new VideoAdapter(this, list, item -> {
             Intent i = new Intent(this, VideoPlayerActivity.class);
             i.putExtra("VIDEO_ID", item.getId());
@@ -230,13 +411,12 @@ public class MainActivity extends AppCompatActivity {
             i.putExtra("VIDEO_THUMB", item.getSnippet().getThumbnails().getHigh().getUrl());
             startActivity(i);
         });
-
         rv.setAdapter(adapter);
 
         viewMoreTv.setOnClickListener(v -> {
             AdManager.showInterstitial(this, () -> {
-                Intent i = new Intent(MainActivity.this, CategoryListActivity.class);
-                i.putExtra("CAT_ID", catIdOrKeyword); // Pass ID or Keyword
+                Intent i = new Intent(this, CategoryListActivity.class);
+                i.putExtra("CAT_ID", catIdOrKeyword);
                 i.putExtra("CAT_NAME", title);
                 startActivity(i);
             });
@@ -246,192 +426,14 @@ public class MainActivity extends AppCompatActivity {
         fetchData(catIdOrKeyword, list, adapter, progressBar, 0);
     }
 
-
-    // ====================== DATA/NETWORK/CACHE LOGIC ======================
-
-    private void loadAppContent() {
-        shimmerContainer.startShimmer();
-        Map<String, String> categories = CategoryHelper.getCategories();
-        totalSections = categories.size();
-        sectionsLoaded = 0;
-
-        for (Map.Entry<String, String> entry : categories.entrySet()) {
-            addChip(entry.getKey());
-            addSection(entry.getKey(), entry.getValue());
-        }
-    }
-
-    // 🔥 MAIN CORE METHOD (QUOTA SAVER) 🔥
-// MainActivity.java ke andar fetchData method ko replace karein:
-
-    private void fetchData(String catIdOrKeyword, List<VideoItem> list, VideoAdapter adapter, ProgressBar bar, int retryCount) {
-        String currentKey = KeyManager.getApiKey(this);
-
-        // --- CRASH FIX: Safe Key Generation (for null/keywords) ---
-        // Hum sirf null check karenge, replaceAll ko avoid karenge agar null hai
-        String safeKeyPart;
-        if (catIdOrKeyword == null || catIdOrKeyword.isEmpty() || !catIdOrKeyword.matches("\\d+")) {
-            safeKeyPart = "trending_overall";
-        } else {
-            safeKeyPart = catIdOrKeyword;
-        }
-        String cacheKey = "main_unique_" + safeKeyPart.replaceAll("\\s+", "_").toLowerCase();
-        // --- CRASH FIX END ---
-
-        JsonCacheManager cm = new JsonCacheManager(this);
-        Gson gson = new Gson();
-        YouTubeApiService api = RetrofitClient.getRetrofitInstance(this).create(YouTubeApiService.class);
-
-        Call<VideoResponse> call;
-
-        // 🔥 MAIN LOGIC: 'Constant.equals(variable)' pattern for safety
-        if ("MOST_VIEWED".equals(catIdOrKeyword)) { // Now safe from NullPointerException
-            call = api.searchVideos("snippet", "most viewed videos", "viewCount", null, "any", "completed", "video", 10, currentKey);
-        }
-        else if ("MOST_LIKED".equals(catIdOrKeyword)) { // Now safe from NullPointerException
-            call = api.searchVideos("snippet", "top rated videos", "rating", null, "any", "completed", "video", 10, currentKey);
-        }
-        else if ("SHORTS_TREND".equals(catIdOrKeyword)) { // Now safe from NullPointerException
-            call = api.searchVideos("snippet", "trending shorts india", "relevance", null, "short", "completed", "video", 10, currentKey);
-        }
-        else if (catIdOrKeyword == null || "🔥 Trending Now".equals(catIdOrKeyword)) { // NULL is handled first
-            call = api.getVideos("snippet,statistics", "mostPopular", "IN", null, 10, currentKey);
-        }
-        else if (catIdOrKeyword.matches("\\d+")) { // CHEAP CALL: Standard Category ID (25, 20, etc.)
-            call = api.getVideos("snippet,statistics", "mostPopular", "IN", catIdOrKeyword, 10, currentKey);
-        }
-        else {
-            // EXPENSIVE CALL: Travel/Education Keywords (Since it's not null and not a digit ID)
-            call = api.searchVideos("snippet", catIdOrKeyword, "relevance", null, "any", "completed", "video", 10, currentKey);
-        }
-
-        call.enqueue(new Callback<VideoResponse>() {
-            @Override
-            public void onResponse(Call<VideoResponse> call, Response<VideoResponse> response) {
-                if (response.code() == 403 && retryCount < KeyManager.getKeyCount()) {
-                    KeyManager.rotateKey(MainActivity.this);
-                    fetchData(catIdOrKeyword, list, adapter, bar, retryCount + 1); // RETRY
-                    return;
-                }
-                bar.setVisibility(View.GONE);
-                if (response.isSuccessful() && response.body() != null) {
-                    cm.saveCache(cacheKey, gson.toJson(response.body()));
-                    list.clear();
-                    list.addAll(response.body().getItems());
-                    adapter.notifyDataSetChanged();
-                } else {
-                    loadLocalCache(cacheKey, list, adapter, gson, cm);
-                }
-                checkAllLoaded();
-            }
-
-            @Override
-            public void onFailure(Call<VideoResponse> call, Throwable t) {
-                bar.setVisibility(View.GONE);
-                loadLocalCache(cacheKey, list, adapter, gson, cm);
-                checkAllLoaded();
-            }
-        });
-    }
-    // --- UTILITY METHODS (Live/Shorts are also here) ---
-
-    // fetchLiveVideos method - Key Rotation added
-    private void fetchLiveVideos(int retryCount) {
-        String currentKey = KeyManager.getApiKey(this);
-        String cacheKey = "main_live_list";
-        JsonCacheManager cm = new JsonCacheManager(this);
-        Gson gson = new Gson();
-
-        YouTubeApiService api = RetrofitClient.getRetrofitInstance(this).create(YouTubeApiService.class);
-        api.searchVideos("snippet", "live news gaming india", "relevance", null, "any", "live", "video", 10, currentKey)
-                .enqueue(new Callback<VideoResponse>() {
-                    @Override
-                    public void onResponse(Call<VideoResponse> call, Response<VideoResponse> response) {
-                        if (response.code() == 403 && retryCount < KeyManager.getKeyCount()) {
-                            KeyManager.rotateKey(MainActivity.this);
-                            fetchLiveVideos(retryCount + 1); // RETRY
-                            return;
-                        }
-                        if (response.isSuccessful() && response.body() != null) {
-                            cm.saveCache(cacheKey, gson.toJson(response.body()));
-                            liveList.clear();
-                            liveList.addAll(response.body().getItems());
-                            liveAdapter.notifyDataSetChanged();
-                            liveLayout.setVisibility(View.VISIBLE);
-                        } else {
-                            loadLocalCache(cacheKey, liveList, liveAdapter, gson, cm);
-                            if(liveList.size() > 0) liveLayout.setVisibility(View.VISIBLE);
-                        }
-                    }
-                    @Override
-                    public void onFailure(Call<VideoResponse> call, Throwable t) {
-                        loadLocalCache(cacheKey, liveList, liveAdapter, gson, cm);
-                        if(liveList.size() > 0) liveLayout.setVisibility(View.VISIBLE);
-                    }
-                });
-    }
-
-    // fetchShorts method - Key Rotation added
-    private void fetchShorts(int retryCount) {
-        String currentKey = KeyManager.getApiKey(this);
-        String cacheKey = "main_shorts_list";
-        JsonCacheManager cm = new JsonCacheManager(this);
-        Gson gson = new Gson();
-
-        YouTubeApiService api = RetrofitClient.getRetrofitInstance(this).create(YouTubeApiService.class);
-        api.searchVideos("snippet", "trending shorts india", "relevance", null, "short", "completed", "video", 15, currentKey)
-                .enqueue(new Callback<VideoResponse>() {
-                    @Override
-                    public void onResponse(Call<VideoResponse> call, Response<VideoResponse> response) {
-                        if (response.code() == 403 && retryCount < KeyManager.getKeyCount()) {
-                            KeyManager.rotateKey(MainActivity.this);
-                            fetchShorts(retryCount + 1); // RETRY
-                            return;
-                        }
-                        if (response.isSuccessful() && response.body() != null) {
-                            cm.saveCache(cacheKey, gson.toJson(response.body()));
-                            shortsList.clear();
-                            shortsList.addAll(response.body().getItems());
-                            shortsAdapter.notifyDataSetChanged();
-                            shortsLayout.setVisibility(View.VISIBLE);
-                        } else {
-                            loadLocalCache(cacheKey, shortsList, shortsAdapter, gson, cm);
-                            if(shortsList.size() > 0) shortsLayout.setVisibility(View.VISIBLE);
-                        }
-                    }
-                    @Override
-                    public void onFailure(Call<VideoResponse> call, Throwable t) {
-                        loadLocalCache(cacheKey, shortsList, shortsAdapter, gson, cm);
-                        if(shortsList.size() > 0) shortsLayout.setVisibility(View.VISIBLE);
-                    }
-                });
-    }
-
-    // Helper Method to read cache (This was the missing piece)
-    private void loadLocalCache(String key, List<VideoItem> list, RecyclerView.Adapter adapter, Gson gson, JsonCacheManager cm) {
-        String cachedJson = cm.getCache(key);
-        if (cachedJson != null) {
-            try {
-                VideoResponse cachedData = gson.fromJson(cachedJson, VideoResponse.class);
-                if (cachedData != null && cachedData.getItems() != null) {
-                    list.clear();
-                    list.addAll(cachedData.getItems());
-                    adapter.notifyDataSetChanged();
-                }
-            } catch (Exception e) {
-                android.util.Log.e("CacheError", "Could not load cache for key: " + key + e.getMessage());
-            }
-        }
-    }
-
     private void checkAllLoaded() {
         sectionsLoaded++;
         if (sectionsLoaded >= totalSections) {
-            shimmerContainer.stopShimmer();
-            shimmerContainer.setVisibility(View.GONE);
+            if (shimmerContainer != null) {
+                shimmerContainer.stopShimmer();
+                shimmerContainer.setVisibility(View.GONE);
+            }
             contentContainer.setVisibility(View.VISIBLE);
         }
     }
-
-
 }

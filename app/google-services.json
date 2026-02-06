@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "106276656646",
+    "project_id": "viralstream-8cf0f",
+    "storage_bucket": "viralstream-8cf0f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:106276656646:android:d94e1e50df3c66c7629587",
+        "android_client_info": {
+          "package_name": "com.sandeshkoli.yttrendy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDufz9f5c4T4uRWOHK8Wuq2F9MIkRPqJOs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
