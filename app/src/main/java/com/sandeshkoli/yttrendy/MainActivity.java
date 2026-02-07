@@ -15,6 +15,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
@@ -70,6 +72,15 @@ public class MainActivity extends AppCompatActivity {
     private Gson gson = new Gson();
 
     private androidx.swiperefreshlayout.widget.SwipeRefreshLayout swipeRefreshLayout;
+
+    private final ActivityResultLauncher<String> requestPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                if (isGranted) {
+                    android.util.Log.d("NOTIF", "Permission Granted!");
+                } else {
+                    Toast.makeText(this, "Notifications are disabled. You might miss trending updates.", Toast.LENGTH_SHORT).show();
+                }
+            });
 
 
     @Override
@@ -148,6 +159,19 @@ public class MainActivity extends AppCompatActivity {
             // 4. Dobara loading shuru
             loadAppFlow();
         });
+
+        checkNotificationPermission();
+    }
+
+    private void checkNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) !=
+                    android.content.pm.PackageManager.PERMISSION_GRANTED) {
+
+                // Permission nahi hai, toh maango
+                requestPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
     }
 
     private void loadAppFlow() {
