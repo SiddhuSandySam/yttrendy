@@ -100,24 +100,40 @@ public class SearchActivity extends AppCompatActivity {
 
     private void performSearch() {
         String query = etSearch.getText().toString().trim();
-        if (query.isEmpty()) return;
 
-        InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
-        if (imm != null) imm.hideSoftInputFromWindow(etSearch.getWindowToken(), 0);
+        if (query.isEmpty()) {
+            etSearch.setError("Please enter something");
+            return;
+        }
 
-        SearchHistoryHelper.saveSearch(this, query);
+        // 🔥 ZAROORI FIX: Search keyword ko history mein save karo
+        com.sandeshkoli.yttrendy.utils.SearchHistoryHelper.saveSearch(this, query);
+
+        // Keyboard close logic...
+        View view = this.getCurrentFocus();
+        if (view != null) {
+            InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+        }
+
+        etSearch.clearFocus();
         historyRv.setVisibility(View.GONE);
         currentQuery = query;
+
         fetchSearchResults();
     }
-
     private void fetchSearchResults() {
-        // 🔥 Region-specific search cache
-        String cacheKey = "search_" + currentQuery.replaceAll("\\s+", "_").toLowerCase() + "_" + currentRegion;
+        historyRv.setVisibility(View.GONE);
+
+        // 🔥 SMART QUOTA SAVER LOGIC
+        String optimizedKey = com.sandeshkoli.yttrendy.utils.QueryOptimizer.getCleanedKey(currentQuery);
+        String cacheKey = "search_" + optimizedKey + "_" + currentRegion;
+
+        android.util.Log.d("QUOTA_SAVER", "User Searched: [" + currentQuery + "] -> Cache Key: [" + cacheKey + "]");
 
         String localJson = cacheManager.getCache(cacheKey);
         if (localJson != null) {
-            android.util.Log.d("DATA_SOURCE_TRACKER", "📱 SOURCE: [Local Cache] Search: " + currentQuery);
+            android.util.Log.d("DATA_SOURCE_TRACKER", "📱 SOURCE: [Local Cache] Search: " + optimizedKey);
             updateSearchUI(gson.fromJson(localJson, Map.class));
             return;
         }
@@ -129,20 +145,26 @@ public class SearchActivity extends AppCompatActivity {
                     if (task.isSuccessful()) {
                         Map<String, Object> result = (Map<String, Object>) task.getResult().getData();
                         String source = (String) result.get("source");
-                        android.util.Log.d("DATA_SOURCE_TRACKER", "🌐 SOURCE: [" + source.toUpperCase() + "] Search: " + currentQuery);
+                        android.util.Log.d("DATA_SOURCE_TRACKER", "🌐 SOURCE: [" + source.toUpperCase() + "] Search Key: " + cacheKey);
 
                         cacheManager.saveCache(cacheKey, gson.toJson(result));
                         updateSearchUI(result);
                     }
                 });
     }
-
     private void updateSearchUI(Map<String, Object> result) {
         List<Map<String, Object>> items = (List<Map<String, Object>>) result.get("items");
         if (items != null) {
             videoList.clear();
             for (Map<String, Object> itemMap : items) {
-                videoList.add(gson.fromJson(gson.toJson(itemMap), VideoItem.class));
+                try {
+                    Object idObj = itemMap.get("id");
+                    if (idObj instanceof Map) {
+                        Map<String, Object> idMap = (Map<String, Object>) idObj;
+                        itemMap.put("id", idMap.get("videoId"));
+                    }
+                    videoList.add(gson.fromJson(gson.toJson(itemMap), VideoItem.class));
+                } catch (Exception e) { }
             }
             adapter.notifyDataSetChanged();
         }
@@ -151,14 +173,26 @@ public class SearchActivity extends AppCompatActivity {
     private void showHistory() {
         List<String> list = SearchHistoryHelper.getHistory(this);
         if (!list.isEmpty()) {
-            historyAdapter = new HistoryAdapter(list, query -> {
-                etSearch.setText(query);
-                etSearch.setSelection(query.length());
-                performSearch();
+            historyAdapter = new HistoryAdapter(list, new HistoryAdapter.OnHistoryClickListener() {
+                @Override
+                public void onHistoryClick(String query) {
+                    etSearch.setText(query);
+                    etSearch.setSelection(query.length());
+                    performSearch();
+                }
+
+                @Override
+                public void onDeleteClick(String query) {
+                    // Delete single item
+                    SearchHistoryHelper.removeSearch(SearchActivity.this, query);
+                    showHistory(); // Refresh list
+                }
             });
             historyRv.setAdapter(historyAdapter);
             historyRv.setVisibility(View.VISIBLE);
-        } else historyRv.setVisibility(View.GONE);
+        } else {
+            historyRv.setVisibility(View.GONE);
+        }
     }
 
     private void showFilterMenu() { /* Existing Filter Logic */ }

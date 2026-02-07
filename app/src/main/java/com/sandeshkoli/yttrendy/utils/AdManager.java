@@ -3,9 +3,7 @@ package com.sandeshkoli.yttrendy.utils;
 import android.app.Activity;
 import android.content.Context;
 import android.os.Handler;
-import android.os.Looper; // <--- Ye zaroori hai
-
-
+import android.os.Looper;
 import androidx.annotation.NonNull;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.FullScreenContentCallback;
@@ -16,7 +14,9 @@ import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
 
 public class AdManager {
     private static InterstitialAd mInterstitialAd;
-    private static int clickCount = 0; // Sabse important variable
+    private static int clickCount = 0;
+    private static long lastAdShowTime = 0; // Pichle ad ka time
+    private static final long AD_COOLDOWN_MS = 2 * 60 * 1000; // 2 Minutes ka cooldown
 
     public static void init(Context context) {
         MobileAds.initialize(context, initializationStatus -> {});
@@ -34,41 +34,33 @@ public class AdManager {
                     @Override
                     public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
                         mInterstitialAd = null;
-
-                        // Naye tarike se Handler likhein (Looper.getMainLooper() ke sath)
-                        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                            loadInterstitial(context);
-                        }, 5000);
+                        new Handler(Looper.getMainLooper()).postDelayed(() -> loadInterstitial(context), 5000);
                     }
                 });
     }
 
     public static void showInterstitial(Activity activity, AdFinishedListener listener) {
-        clickCount++; // Har baar click count badhao
+        clickCount++;
+        long currentTime = System.currentTimeMillis();
 
-        // Logic: Agar click count 3 ka multiple hai (3, 6, 9...) aur ad ready hai
-        if (clickCount % 3 == 0 && mInterstitialAd != null) {
+        // Logic: Agar 3 clicks hue hain AUR 2 minute beet chuke hain tabhi ad dikhao
+        if (clickCount % 3 == 0 && (currentTime - lastAdShowTime > AD_COOLDOWN_MS) && mInterstitialAd != null) {
             mInterstitialAd.show(activity);
             mInterstitialAd.setFullScreenContentCallback(new FullScreenContentCallback() {
                 @Override
                 public void onAdDismissedFullScreenContent() {
-                    loadInterstitial(activity); // Naya load karo
+                    lastAdShowTime = System.currentTimeMillis(); // Time update karo
+                    loadInterstitial(activity);
                     if (listener != null) listener.onAdFinished();
                 }
-
                 @Override
                 public void onAdFailedToShowFullScreenContent(@NonNull com.google.android.gms.ads.AdError adError) {
                     if (listener != null) listener.onAdFinished();
                 }
             });
         } else {
-            // Agar 3 clicks nahi huye ya ad ready nahi hai, to bina ad ke kaam hone do
             if (listener != null) listener.onAdFinished();
-
-            // Background me ad load karlo agar null hai to
-            if (mInterstitialAd == null) {
-                loadInterstitial(activity);
-            }
+            if (mInterstitialAd == null) loadInterstitial(activity);
         }
     }
 

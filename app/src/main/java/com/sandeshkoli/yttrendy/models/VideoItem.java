@@ -1,13 +1,12 @@
 package com.sandeshkoli.yttrendy.models;
 
 import com.google.gson.annotations.SerializedName;
-import com.google.gson.internal.LinkedTreeMap; // Import zaroori hai
 
 public class VideoItem {
 
-    // Trick: Hum ID ko generic Object lenge
+    // Ab hum ise seedha String rakh sakte hain kyunki backend normalize kar raha hai
     @SerializedName("id")
-    private Object id;
+    private String id;
 
     @SerializedName("snippet")
     private Snippet snippet;
@@ -16,23 +15,7 @@ public class VideoItem {
     private Statistics statistics;
 
     public String getId() {
-        if (id == null) return "";
-
-        // Case 1: Trending API (ID ek seedha String hota hai)
-        if (id instanceof String) {
-            return (String) id;
-        }
-
-        // Case 2: Search API (ID ek Object/Map hota hai)
-        // Gson ise LinkedTreeMap bana deta hai
-        else if (id instanceof LinkedTreeMap) {
-            LinkedTreeMap map = (LinkedTreeMap) id;
-            if (map.containsKey("videoId")) {
-                return (String) map.get("videoId");
-            }
-        }
-
-        return ""; // Fallback
+        return id != null ? id : "";
     }
 
     public Snippet getSnippet() {
@@ -43,6 +26,11 @@ public class VideoItem {
         return statistics;
     }
 
-    public void setId(Object id) { this.id = id; }
-    public void setSnippet(Snippet snippet) { this.snippet = snippet; }
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public void setSnippet(Snippet snippet) {
+        this.snippet = snippet;
+    }
 }

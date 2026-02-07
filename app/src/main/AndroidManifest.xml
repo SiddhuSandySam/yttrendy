@@ -43,8 +43,8 @@
         <activity
             android:name=".VideoPlayerActivity"
             android:exported="false"
-        android:supportsPictureInPicture="true"
-        android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation" />
+            android:supportsPictureInPicture="true"
+            android:configChanges="orientation|screenSize|keyboardHidden"  />
         <activity
             android:name=".MainActivity"
             android:exported="false" />
@@ -52,7 +52,7 @@
         <!-- <application> tag ke andar ye replace kardo -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3047884361380270~4295556238"/><!-- Ye sample ID hai -->
+            android:value="ca-app-pub-3047884361380270~4295556238" /><!-- Ye sample ID hai -->
     </application>
 
 </manifest>

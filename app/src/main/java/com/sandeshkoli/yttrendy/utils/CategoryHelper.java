@@ -8,7 +8,7 @@ public class CategoryHelper {
         LinkedHashMap<String, String> map = new LinkedHashMap<>();
 
         map.put("🔥 Trending Now", null);
-        map.put("India Now", "INDIA_NOW");
+        map.put("India Now", "India viral trending");
         map.put("🎵 Music", "MUSIC");
         map.put("📺 TV Shows", "TV_SHOWS");
         map.put("⛩️ Anime", "ANIME");

@@ -86,20 +86,17 @@ public class SavedVideosActivity extends AppCompatActivity {
     private VideoItem convertToVideoItem(VideoEntity entity) {
         VideoItem item = new VideoItem();
 
-        // 1. Set ID (Search fix wala logic dhyan me rakhte hue)
+        // Ab setId sirf String leta hai, toh ye perfect chalega
         item.setId(entity.videoId);
 
-        // 2. Set Thumbnail
         Thumbnail highRes = new Thumbnail(entity.thumbnailUrl);
         Thumbnails thumbnails = new Thumbnails(highRes);
 
-        // 3. Set Snippet (Title + Channel Name)
         Snippet snippet = new Snippet(entity.title, entity.channelName, thumbnails);
         item.setSnippet(snippet);
 
         return item;
     }
-
     @Override
     protected void onStart() {
         super.onStart();

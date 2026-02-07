@@ -74,6 +74,8 @@ public class CategoryPageActivity extends AppCompatActivity {
 
         viewMoreTv.setOnClickListener(v -> {
             Intent intent = new Intent(this, CategoryListActivity.class);
+            // CAT_ID mein keyword (searchQuery) bhejna zaroori hai
+            intent.putExtra("CAT_ID", searchQuery);
             intent.putExtra("CAT_NAME", title);
             startActivity(intent);
         });
@@ -117,8 +119,28 @@ public class CategoryPageActivity extends AppCompatActivity {
         if (items != null) {
             list.clear();
             for (Map<String, Object> itemMap : items) {
-                VideoItem item = gson.fromJson(gson.toJson(itemMap), VideoItem.class);
-                list.add(item);
+                try {
+                    // --- SAFE ID EXTRACTION ---
+                    Object idObj = itemMap.get("id");
+                    String finalId = "";
+
+                    if (idObj instanceof String) {
+                        finalId = (String) idObj;
+                    } else if (idObj instanceof Map) {
+                        Map<String, Object> idMap = (Map<String, Object>) idObj;
+                        if (idMap.containsKey("videoId")) {
+                            finalId = (String) idMap.get("videoId");
+                        }
+                    }
+
+                    // ID ko string format mein fix karo
+                    itemMap.put("id", finalId);
+
+                    VideoItem item = gson.fromJson(gson.toJson(itemMap), VideoItem.class);
+                    list.add(item);
+                } catch (Exception e) {
+                    android.util.Log.e("JSON_ERROR", "CategoryPage parse error: " + e.getMessage());
+                }
             }
             adapter.notifyDataSetChanged();
         }

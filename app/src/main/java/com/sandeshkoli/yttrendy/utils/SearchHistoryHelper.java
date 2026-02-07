@@ -39,4 +39,15 @@ public class SearchHistoryHelper {
     public static void clearHistory(Context context) {
         context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit().clear().apply();
     }
+
+    // SearchHistoryHelper.java mein ye naya method add karein:
+
+    public static void removeSearch(Context context, String query) {
+        List<String> history = getHistory(context);
+        if (history.contains(query)) {
+            history.remove(query);
+            SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+            prefs.edit().putString(KEY_HISTORY, new Gson().toJson(history)).apply();
+        }
+    }
 }

@@ -10,12 +10,15 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.sandeshkoli.yttrendy.R;
 import java.util.List;
 
+// HistoryAdapter.java ko replace karein:
+
 public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
     private List<String> historyList;
     private OnHistoryClickListener listener;
 
     public interface OnHistoryClickListener {
         void onHistoryClick(String query);
+        void onDeleteClick(String query); // Naya callback
     }
 
     public HistoryAdapter(List<String> historyList, OnHistoryClickListener listener) {
@@ -34,7 +37,12 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         String query = historyList.get(position);
         holder.text.setText(query);
+
+        // Item click (Search perform karne ke liye)
         holder.itemView.setOnClickListener(v -> listener.onHistoryClick(query));
+
+        // Delete click (X button)
+        holder.btnDelete.setOnClickListener(v -> listener.onDeleteClick(query));
     }
 
     @Override
@@ -42,9 +50,11 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView text;
+        ImageView btnDelete;
         public ViewHolder(View v) {
             super(v);
             text = v.findViewById(R.id.history_text);
+            btnDelete = v.findViewById(R.id.btn_delete_history);
         }
     }
 }

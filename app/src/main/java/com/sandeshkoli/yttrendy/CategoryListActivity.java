@@ -51,6 +51,10 @@ public class CategoryListActivity extends AppCompatActivity {
         recyclerView = findViewById(R.id.vertical_recycler_view);
         btnFilter = findViewById(R.id.btn_filter);
 
+        // Toolbar ke andar search button ko hide karo
+        View searchBtn = findViewById(R.id.btn_search);
+        if (searchBtn != null) searchBtn.setVisibility(View.GONE);
+
         if(titleView != null) titleView.setText(categoryName);
         findViewById(R.id.btn_menu).setOnClickListener(v -> finish()); // Back button
 
@@ -76,16 +80,20 @@ public class CategoryListActivity extends AppCompatActivity {
     }
 
     private void decideAndFetchData() {
-        String query = categoryName;
+        // FIX: Agar categoryId (keyword) maujood hai toh use query banao,
+        // warna categoryName ko use karo.
+        String query = (categoryId != null) ? categoryId : categoryName;
+
+        // Check karo ki keyword sirf numbers hai (Category ID) ya text (Search Query)
         String categoryIdParam = (categoryId != null && categoryId.matches("\\d+")) ? categoryId : null;
 
-        // 🔥 Region-specific cache key
-        String cacheKey = "view_more_" + (categoryIdParam != null ? categoryIdParam : categoryName.replaceAll("\\s+", "_").toLowerCase()) + "_" + currentRegion;
+        // Region-specific cache key
+        String cacheKey = "view_more_" + query.replaceAll("\\s+", "_").toLowerCase() + "_" + currentRegion;
 
         // 1. Check Local Cache First
         String localJson = cacheManager.getCache(cacheKey);
         if (localJson != null) {
-            android.util.Log.d("DATA_SOURCE_TRACKER", "📱 SOURCE: [Local Mobile Cache] View More: " + categoryName);
+            android.util.Log.d("DATA_SOURCE_TRACKER", "📱 SOURCE: [Local Mobile Cache] View More: " + query);
             handleFirebaseResponse(gson.fromJson(localJson, Map.class));
             return;
         }
@@ -99,21 +107,40 @@ public class CategoryListActivity extends AppCompatActivity {
                     if (task.isSuccessful()) {
                         Map<String, Object> result = (Map<String, Object>) task.getResult().getData();
                         String source = (String) result.get("source");
-                        android.util.Log.d("DATA_SOURCE_TRACKER", "📊 VIEW_MORE SOURCE: [" + source.toUpperCase() + "] Region: " + currentRegion);
+                        android.util.Log.d("DATA_SOURCE_TRACKER", "📊 VIEW_MORE SOURCE: [" + source.toUpperCase() + "] Query: " + query);
 
                         cacheManager.saveCache(cacheKey, gson.toJson(result));
                         handleFirebaseResponse(result);
                     }
                 });
     }
-
     private void handleFirebaseResponse(Map<String, Object> result) {
         List<Map<String, Object>> items = (List<Map<String, Object>>) result.get("items");
         if (items != null) {
             videoList.clear();
             for (Map<String, Object> itemMap : items) {
-                VideoItem item = gson.fromJson(gson.toJson(itemMap), VideoItem.class);
-                videoList.add(item);
+                try {
+                    // --- SAFE ID EXTRACTION ---
+                    Object idObj = itemMap.get("id");
+                    String finalId = "";
+
+                    if (idObj instanceof String) {
+                        finalId = (String) idObj;
+                    } else if (idObj instanceof Map) {
+                        Map<String, Object> idMap = (Map<String, Object>) idObj;
+                        if (idMap.containsKey("videoId")) {
+                            finalId = (String) idMap.get("videoId");
+                        }
+                    }
+
+                    // ID ko string format mein wapas daalo
+                    itemMap.put("id", finalId);
+
+                    VideoItem item = gson.fromJson(gson.toJson(itemMap), VideoItem.class);
+                    videoList.add(item);
+                } catch (Exception e) {
+                    android.util.Log.e("JSON_ERROR", "CategoryList parse error: " + e.getMessage());
+                }
             }
             adapter.notifyDataSetChanged();
         }

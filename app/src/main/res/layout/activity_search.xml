@@ -20,10 +20,11 @@
         <!-- Back Button -->
         <ImageView
             android:id="@+id/btn_back"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_launcher_foreground"
-            android:rotation="180"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="12dp"
+            android:src="@android:drawable/ic_menu_revert"
+            android:background="?attr/selectableItemBackgroundBorderless"
             app:tint="@color/text_secondary_dark" />
 
         <!-- Search Input -->
@@ -44,9 +45,13 @@
         <!-- Search Action Button -->
         <ImageView
             android:id="@+id/btn_perform_search"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="12dp"
             android:src="@android:drawable/ic_menu_search"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
             app:tint="@color/accent_blue" />
 
     </LinearLayout>

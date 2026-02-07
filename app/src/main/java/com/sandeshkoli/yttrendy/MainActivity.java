@@ -37,6 +37,7 @@ import com.sandeshkoli.yttrendy.utils.FirebaseDataManager;
 import com.sandeshkoli.yttrendy.utils.JsonCacheManager;
 import com.sandeshkoli.yttrendy.utils.NotificationWorker;
 import com.sandeshkoli.yttrendy.utils.RegionHelper;
+import com.sandeshkoli.yttrendy.utils.SearchHistoryHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -133,31 +134,49 @@ public class MainActivity extends AppCompatActivity {
         WorkManager.getInstance(this).enqueue(request);
 
         swipeRefreshLayout.setOnRefreshListener(() -> {
-            android.util.Log.d("DATA_SOURCE_TRACKER", "🔄 User Force Refresh: Clearing Mobile Cache");
-
-            // 1. Mobile Cache Poora Saaf Karo
+            // 1. Mobile Cache Clear
             cacheManager.clearAll();
 
-            // 2. Data Dobara Load Karo (Ab ye direct Firebase/API se aayega)
+            // 2. Sections count reset
+            sectionsLoaded = 0;
+
+            // 3. UI reset (Shimmer dikhao, content chupao)
+            contentContainer.setVisibility(View.GONE);
+            shimmerContainer.setVisibility(View.VISIBLE);
+            shimmerContainer.startShimmer();
+
+            // 4. Dobara loading shuru
             loadAppFlow();
-
-            // 3. Spinner Band Karo
-            swipeRefreshLayout.setRefreshing(false);
-
-            Toast.makeText(this, "Content Refreshed!", Toast.LENGTH_SHORT).show();
         });
     }
 
     private void loadAppFlow() {
         setupLiveRecyclerView();
         fetchLiveVideos();
+        // setupRecommendations(); <--- IS LINE KO DELETE KARO (Double loading rokne ke liye)
 
         setupShortsRecyclerView();
         fetchShorts();
 
         setupToolbar();
         setupNavigationDrawer();
-        loadAppContent();
+        loadAppContent(); // Recommendations yahan se load hongi
+    }
+    private void setupRecommendations() {
+        List<String> history = com.sandeshkoli.yttrendy.utils.SearchHistoryHelper.getHistory(this);
+
+        if (history == null || history.isEmpty()) return;
+
+        // Sirf top 2 results uthao (Quota balance karne ke liye)
+        int limit = Math.min(history.size(), 2);
+
+        for (int i = 0; i < limit; i++) {
+            String keyword = history.get(i);
+            String sectionTitle = "✨ More like '" + keyword + "'";
+
+            // Is keyword ke liye section add karo
+            addSection(sectionTitle, keyword);
+        }
     }
 
     // ====================== REGION SELECTION LOGIC ======================
@@ -202,8 +221,13 @@ public class MainActivity extends AppCompatActivity {
         String query = (catIdOrKeyword == null) ? "trending now" : catIdOrKeyword;
         String categoryId = (catIdOrKeyword != null && catIdOrKeyword.matches("\\d+")) ? catIdOrKeyword : null;
 
+        // 🔥 SMART QUOTA SAVER LOGIC
+        String optimizedKey = com.sandeshkoli.yttrendy.utils.QueryOptimizer.getCleanedKey(query);
         String cacheKey = (categoryId != null) ? "cat_" + categoryId + "_" + currentRegion :
-                "search_" + query.replaceAll("\\s+", "_").toLowerCase() + "_" + currentRegion;
+                "search_" + optimizedKey + "_" + currentRegion;
+
+        // Log check karne ke liye:
+        android.util.Log.d("QUOTA_SAVER", "Original Query: [" + query + "] -> Optimized Key: [" + cacheKey + "]");
 
         // 1. Check Local Cache
         String localJson = cacheManager.getCache(cacheKey);
@@ -226,21 +250,19 @@ public class MainActivity extends AppCompatActivity {
                         updateUIList(result, list, adapter, bar, null);
                         checkAllLoaded();
                     } else {
-                        // 🔥 RETRY LOGIC: Agar fail hua aur humne 3 baar try nahi kiya hai
                         if (retryCount < 3) {
-                            int delay = (retryCount + 1) * 1000; // 1s, 2s, 3s ka delay
-                            android.util.Log.w("DATA_SOURCE_TRACKER", "⚠️ RETRYING (" + (retryCount + 1) + ") for: " + cacheKey);
+                            int delay = (retryCount + 1) * 1000;
                             new android.os.Handler().postDelayed(() ->
                                     fetchData(catIdOrKeyword, list, adapter, bar, retryCount + 1), delay);
                         } else {
-                            android.util.Log.e("DATA_SOURCE_TRACKER", "❌ FINAL FAIL: " + cacheKey);
                             if (bar != null) bar.setVisibility(View.GONE);
                             checkAllLoaded();
                         }
                     }
                 });
     }
-    private void fetchLiveVideos() {
+
+        private void fetchLiveVideos() {
         String cacheKey = "main_live_list_" + currentRegion;
         String query = "live news gaming";
 
@@ -287,8 +309,28 @@ public class MainActivity extends AppCompatActivity {
         if (items != null) {
             list.clear();
             for (Map<String, Object> itemMap : items) {
-                VideoItem item = gson.fromJson(gson.toJson(itemMap), VideoItem.class);
-                list.add(item);
+                try {
+                    // --- SAFE ID EXTRACTION ---
+                    Object idObj = itemMap.get("id");
+                    String finalId = "";
+
+                    if (idObj instanceof String) {
+                        finalId = (String) idObj;
+                    } else if (idObj instanceof Map) {
+                        Map<String, Object> idMap = (Map<String, Object>) idObj;
+                        if (idMap.containsKey("videoId")) {
+                            finalId = (String) idMap.get("videoId");
+                        }
+                    }
+
+                    // Map mein wapas string ID daal do taaki VideoItem crash na kare
+                    itemMap.put("id", finalId);
+
+                    VideoItem item = gson.fromJson(gson.toJson(itemMap), VideoItem.class);
+                    list.add(item);
+                } catch (Exception e) {
+                    android.util.Log.e("JSON_ERROR", "Error parsing item: " + e.getMessage());
+                }
             }
             adapter.notifyDataSetChanged();
             if (layoutToShow != null) layoutToShow.setVisibility(View.VISIBLE);
@@ -312,19 +354,26 @@ public class MainActivity extends AppCompatActivity {
     // ====================== UI SETUP METHODS ======================
 
     private void loadAppContent() {
-        if (shimmerContainer != null) shimmerContainer.startShimmer();
-        Map<String, String> categories = CategoryHelper.getCategories();
-        totalSections = categories.size();
-        sectionsLoaded = 0;
-
-        contentContainer.removeAllViews(); // Purane views saaf karo (Important for recreate)
+        contentContainer.removeAllViews();
         chipsContainer.removeAllViews();
+
+        setupRecommendations();
+
+        Map<String, String> categories = com.sandeshkoli.yttrendy.utils.CategoryHelper.getCategories();
+        List<String> history = com.sandeshkoli.yttrendy.utils.SearchHistoryHelper.getHistory(this);
+
+        // Total = Categories + Recommended (max 2)
+        int recCount = Math.min(history.size(), 2);
+        totalSections = categories.size() + recCount;
+
+        sectionsLoaded = 0;
 
         for (Map.Entry<String, String> entry : categories.entrySet()) {
             addChip(entry.getKey());
             addSection(entry.getKey(), entry.getValue());
         }
     }
+
 
     private void setupLiveRecyclerView() {
         rvLive.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
@@ -428,12 +477,18 @@ public class MainActivity extends AppCompatActivity {
 
     private void checkAllLoaded() {
         sectionsLoaded++;
-        if (sectionsLoaded >= totalSections) {
+        // Jab total sections + Live + Shorts sab load ho jayein (isliye +2)
+        if (sectionsLoaded >= (totalSections)) {
             if (shimmerContainer != null) {
                 shimmerContainer.stopShimmer();
                 shimmerContainer.setVisibility(View.GONE);
             }
             contentContainer.setVisibility(View.VISIBLE);
+
+            // Spinner ko band karo
+            if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
+                swipeRefreshLayout.setRefreshing(false);
+            }
         }
     }
 }

@@ -92,28 +92,27 @@ public class SubCategoryHelper {
 
             case "🎙️ Journalists":
                 // Balance: Popular Indian, Global and Regional
-                map.put("Ravish Kumar", "Ravish Kumar latest news");
-                map.put("Arnab Goswami", "Arnab Goswami debate");
-                map.put("Punya Prasun", "Punya Prasun Bajpai latest video");
-                map.put("Hamid Mir", "Hamid Mir Capital Talk clips");
-                map.put("Kashif Abbasi", "Kashif Abbasi Off the Record");
-                map.put("Javed Chaudhry", "Javed Chaudhry analysis");
-                map.put("Talat Hussain", "Syed Talat Hussain latest");
-                map.put("Palki Sharma", "Palki Sharma Upfront analysis");
+                map.put("Sudhir Chaudhary", "Sudhir Chaudhary latest DNA analysis");
+                map.put("Arnab Goswami", "Arnab Goswami Republic Bharat debate");
+                map.put("Rajat Sharma", "Rajat Sharma Aap Ki Adalat latest");
+                map.put("Palki Sharma", "Palki Sharma Vantage analysis");
+                map.put("Sushant Sinha", "Sushant Sinha News Ki Pathshala latest");
+                map.put("Deepak Chaurasia", "Deepak Chaurasia news debate");
+                map.put("Aman Chopra", "Aman Chopra Desh Nahin Jhukne Denge");
+                map.put("Rubika Liyaquat", "Rubika Liyaquat latest news debate");
                 map.put("Top Journalists", "World top investigative journalists");
                 break;
 
             case "🕌 Scholars":
                 // Generic Wisdom & Religion mix
-                map.put("Mufti Menk", "Mufti Menk inspirational lectures");
-                map.put("Zakir Naik", "Dr Zakir Naik latest sessions");
-                map.put("Sadhguru", "Sadhguru wisdom and meditation");
+                map.put("Swami Vivekananda", "Swami Vivekananda motivational speech hindi");
+                map.put("Premanand Ji Maharaj", "Premanand Ji Maharaj Vrindavan satsang");
+                map.put("Sadhguru", "Sadhguru wisdom and meditation hindi");
                 map.put("Gaur Gopal Das", "Gaur Gopal Das life lessons");
-                map.put("Yasmin Mogahed", "Yasmin Mogahed spiritual talk");
-                map.put("Nouman Ali Khan", "Nouman Ali Khan quran study");
-                map.put("Omar Suleiman", "Omar Suleiman latest series");
-                map.put("Tariq Jamil", "Maulana Tariq Jamil bayan");
-                map.put("Wisdom Seekers", "Global spiritual leaders talk");
+                map.put("Jaya Kishori", "Jaya Kishori motivational katha");
+                map.put("Aniruddhacharya Ji", "Aniruddhacharya ji funny and motivation");
+                map.put("Adi Shankaracharya", "Adi Shankaracharya story and wisdom");
+                map.put("Dharma Wisdom", "Sanatan Dharma spiritual knowledge");
                 break;
 
             case "🌍 Leaders":
@@ -134,11 +133,14 @@ public class SubCategoryHelper {
                 break;
 
             case "✨ Motivational":
-                map.put("Sandeep Maheshwari", "Sandeep Maheshwari latest session");
-                map.put("Akash Gautam", "Akash Gautam best sessions");
-                map.put("Productivity", "How to increase productivity daily");
-                map.put("Self Improvement", "Personal development life hacks");
-                map.put("Life Lessons", "Inspirational life stories 2026");
+                map.put("Shivaji Maharaj", "Chatrapati Shivaji Maharaj motivational history");
+                map.put("Sambhaji Maharaj", "Chatrapati Sambhaji Maharaj bravery life story");
+                map.put("Maharana Pratap", "Maharana Pratap bravery history");
+                map.put("Bhagat Singh", "Bhagat Singh krantikari documentary");
+                map.put("Prithviraj Chauhan", "Prithviraj Chauhan battle history");
+                map.put("Subhash Chandra Bose", "Netaji Subhash Chandra Bose motivation");
+                map.put("Real Heroes", "Indian warriors and freedom fighters history");
+                map.put("Life Lessons", "Inspirational life stories of great leaders");
                 break;
 
             case "🎓 Courses":

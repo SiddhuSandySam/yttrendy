@@ -84,41 +84,60 @@ public class VideoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
 // VideoAdapter.java ke andar bindVideoData method dhundo aur replace karo:
 
     private void bindVideoData(VideoViewHolder holder, VideoItem currentItem) {
-        if (currentItem.getSnippet() != null) {
-            holder.titleTextView.setText(currentItem.getSnippet().getTitle());
-            String channelName = currentItem.getSnippet().getChannelTitle();
-            String detailsText = channelName;
+        if (currentItem == null || currentItem.getSnippet() == null) return;
 
-            if (currentItem.getStatistics() != null && currentItem.getStatistics().getViewCount() != null) {
-                String formattedViews = NumberFormatter.formatViewCount(Long.parseLong(currentItem.getStatistics().getViewCount()));
-                detailsText += " • " + formattedViews + " views";
-            }
-            holder.detailsTextView.setText(detailsText);
+        // 1. Title set karo
+        holder.titleTextView.setText(currentItem.getSnippet().getTitle());
 
-            // --- OPTIMIZED GLIDE LOADING ---
-            Glide.with(context)
-                    .load(currentItem.getSnippet().getThumbnails().getHigh().getUrl())
-                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL) // Cache Original & Resized
-                    .placeholder(R.color.cardview_dark_background) // Load hone tak Dark Gray dikhega
-                    .error(android.R.drawable.ic_menu_report_image) // Agar load fail ho to
-                    .centerCrop() // Image ko properly fit karega
-                    .transition(com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions.withCrossFade()) // Smooth Fade-in Effect
-                    .into(holder.thumbnailImageView);
+        // 2. Channel Name and Views logic
+        String channelName = currentItem.getSnippet().getChannelTitle();
+        StringBuilder detailsText = new StringBuilder(channelName != null ? channelName : "Unknown Channel");
 
-            // Click Listeners
-            holder.itemView.setOnClickListener(v -> listener.onItemClick(currentItem));
-
-            if (holder.btnShare != null) {
-                holder.btnShare.setOnClickListener(v ->
-                        shareVideo(context, currentItem.getId(), currentItem.getSnippet().getTitle()));
-            }
-
-            if (holder.btnSave != null) {
-                holder.btnSave.setOnClickListener(v ->
-                        saveVideoToDb(context, currentItem));
+        // SAFE VIEW COUNT CHECK: Check karo statistics null toh nahi
+        if (currentItem.getStatistics() != null && currentItem.getStatistics().getViewCount() != null) {
+            try {
+                String countStr = currentItem.getStatistics().getViewCount();
+                if (!countStr.isEmpty()) {
+                    long viewCount = Long.parseLong(countStr);
+                    String formattedViews = NumberFormatter.formatViewCount(viewCount);
+                    detailsText.append(" • ").append(formattedViews).append(" views");
+                }
+            } catch (Exception e) {
+                // Agar parse karne mein error aaye toh sirf channel name dikhao, crash mat hone do
+                android.util.Log.e("ADAPTER_ERROR", "View count parse failed: " + e.getMessage());
             }
         }
+        holder.detailsTextView.setText(detailsText.toString());
+
+        // 3. GLIDE (Pehle wala logic sahi hai)
+        if (currentItem.getSnippet().getThumbnails() != null &&
+                currentItem.getSnippet().getThumbnails().getHigh() != null) {
+
+            Glide.with(context)
+                    .load(currentItem.getSnippet().getThumbnails().getHigh().getUrl())
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                    .placeholder(R.color.cardview_dark_background)
+                    .error(android.R.drawable.ic_menu_report_image)
+                    .centerCrop()
+                    .transition(com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions.withCrossFade())
+                    .into(holder.thumbnailImageView);
+        }
+
+        // 4. CLICK LISTENERS (Null check ke sath)
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) listener.onItemClick(currentItem);
+        });
+
+        if (holder.btnShare != null) {
+            holder.btnShare.setOnClickListener(v ->
+                    shareVideo(context, currentItem.getId(), currentItem.getSnippet().getTitle()));
+        }
+
+        if (holder.btnSave != null) {
+            holder.btnSave.setOnClickListener(v -> saveVideoToDb(context, currentItem));
+        }
     }
+
     private void shareVideo(Context ctx, String vId, String vTitle) {
         // FIX: Missing URL part fixed
         String videoUrl = "https://www.youtube.com/watch?v=" + vId;

@@ -31,6 +31,7 @@ import com.sandeshkoli.yttrendy.models.VideoItem;
 import com.sandeshkoli.yttrendy.network.AppDatabase;
 import com.sandeshkoli.yttrendy.utils.FirebaseDataManager;
 import com.sandeshkoli.yttrendy.utils.JsonCacheManager;
+import com.sandeshkoli.yttrendy.utils.QueryOptimizer; // Optimizer import kiya
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +46,7 @@ public class VideoPlayerActivity extends AppCompatActivity {
     private List<VideoItem> relatedList = new ArrayList<>();
     private SwitchCompat switchAutoplay;
     private View contentScroll;
+    private TextView titleView, descView;
 
     private String currentRegion = "IN";
     private Gson gson = new Gson();
@@ -64,8 +66,8 @@ public class VideoPlayerActivity extends AppCompatActivity {
         String thumbUrl = getIntent().getStringExtra("VIDEO_THUMB");
 
         youTubePlayerView = findViewById(R.id.youtube_player_view1);
-        TextView titleView = findViewById(R.id.player_title_view);
-        TextView descView = findViewById(R.id.player_desc_view);
+        titleView = findViewById(R.id.player_title_view);
+        descView = findViewById(R.id.player_desc_view);
         rvRelated = findViewById(R.id.rv_related);
         relatedLoading = findViewById(R.id.related_loading);
         contentScroll = findViewById(R.id.scroll_content_layout);
@@ -109,7 +111,23 @@ public class VideoPlayerActivity extends AppCompatActivity {
         setupButtons(videoId, title, desc, thumbUrl);
         setupRelatedRecyclerView();
 
-        if (title != null) fetchRelatedVideos(getRelevanceQuery(title));
+        // 🔥 SMART FIX: Purana getRelevanceQuery hata diya, Optimizer direct use kiya
+        if (title != null) fetchRelatedVideos(title); // Direct title bhejo, Optimizer sambhaal lega.
+
+        // OnBackPressedDispatcher logic
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                    // 1. Agar Landscape hai, toh pehle Portrait mode mein wapas laao
+                    setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                } else {
+                    // 2. Agar pehle se Portrait hai, toh activity band kar do
+                    finish();
+                }
+            }
+        });
+
     }
 
     private void playNextVideo(VideoItem item) {
@@ -122,25 +140,30 @@ public class VideoPlayerActivity extends AppCompatActivity {
         finish();
     }
 
-    private void fetchRelatedVideos(String query) {
-        // 🔥 Region-aware related videos
-        String cacheKey = "related_" + query.replaceAll("\\s+", "_").toLowerCase() + "_" + currentRegion;
+    private void fetchRelatedVideos(String rawTitle) {
+        // 🔥 ROOT KEY LOGIC: "Arijit Singh Kesariya" -> "arijit"
+        String optimizedKeyword = QueryOptimizer.getCleanedKey(rawTitle);
+        String cacheKey = "related_" + optimizedKeyword + "_" + currentRegion;
 
+        android.util.Log.d("QUOTA_SAVER", "Player Video: [" + rawTitle + "] -> Cache Key: [" + cacheKey + "]");
+
+        // 1. Check Local Cache
         String localJson = cacheManager.getCache(cacheKey);
         if (localJson != null) {
-            android.util.Log.d("DATA_SOURCE_TRACKER", "📱 SOURCE: [Local Cache] Related: " + query);
+            android.util.Log.d("DATA_SOURCE_TRACKER", "📱 SOURCE: [Local Cache] Related: " + optimizedKeyword);
             updateRelatedUI(gson.fromJson(localJson, Map.class));
             return;
         }
 
-        FirebaseDataManager.getVideosFromFirebase(query, null, currentRegion)
+        // 2. Fetch from Firebase
+        FirebaseDataManager.getVideosFromFirebase(optimizedKeyword, null, currentRegion)
                 .addOnCompleteListener(task -> {
                     if (isFinishing()) return;
                     relatedLoading.setVisibility(View.GONE);
                     if (task.isSuccessful()) {
                         Map<String, Object> result = (Map<String, Object>) task.getResult().getData();
                         String source = (String) result.get("source");
-                        android.util.Log.d("DATA_SOURCE_TRACKER", "🌐 SOURCE: [" + source.toUpperCase() + "] Related");
+                        android.util.Log.d("DATA_SOURCE_TRACKER", "🌐 SOURCE: [" + source.toUpperCase() + "] Related Key: " + cacheKey);
                         cacheManager.saveCache(cacheKey, gson.toJson(result));
                         updateRelatedUI(result);
                     }
@@ -152,7 +175,16 @@ public class VideoPlayerActivity extends AppCompatActivity {
         if (items != null) {
             relatedList.clear();
             for (Map<String, Object> itemMap : items) {
-                relatedList.add(gson.fromJson(gson.toJson(itemMap), VideoItem.class));
+                try {
+                    Object idObj = itemMap.get("id");
+                    String finalId = (idObj instanceof String) ? (String) idObj :
+                            (idObj instanceof Map) ? (String) ((Map) idObj).get("videoId") : "";
+
+                    itemMap.put("id", finalId);
+                    relatedList.add(gson.fromJson(gson.toJson(itemMap), VideoItem.class));
+                } catch (Exception e) {
+                    android.util.Log.e("JSON_ERROR", "Related Videos parse error");
+                }
             }
             relatedAdapter.notifyDataSetChanged();
         }
@@ -184,24 +216,57 @@ public class VideoPlayerActivity extends AppCompatActivity {
         findViewById(R.id.btn_share_video).setOnClickListener(v -> {
             Intent shareIntent = new Intent(Intent.ACTION_SEND);
             shareIntent.setType("text/plain");
-            // 🔥 FIXED BROKEN STRING
-            String msg = "Check out this amazing discovery on ViralStream: \n\n" + title +
-                    "\n\nWatch here: https://www.youtube.com/watch?v=" + videoId;
+            // 🔥 FIXED BROKEN STRING: Ab link sahi jayega
+            String msg = title + "\n\nWatch here: https://www.youtube.com/watch?v=" + videoId + "\n\nvia ViralStream App";
             shareIntent.putExtra(Intent.EXTRA_TEXT, msg);
             startActivity(Intent.createChooser(shareIntent, "Share via"));
         });
-    }
-
-    private String getRelevanceQuery(String fullTitle) {
-        String[] words = fullTitle.split(" ");
-        if (words.length > 4) return words[0] + " " + words[1] + " " + words[2] + " " + words[3];
-        return fullTitle;
     }
 
     private void setupRelatedRecyclerView() {
         rvRelated.setLayoutManager(new LinearLayoutManager(this));
         relatedAdapter = new VideoAdapter(this, relatedList, true, item -> playNextVideo(item));
         rvRelated.setAdapter(relatedAdapter);
+    }
+
+    // 🔥 FULLSCREEN LANDSCAPE LOGIC: Phone rotate hote hi extra UI chupa do
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+
+        View decorView = getWindow().getDecorView();
+
+        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            // 1. Hide extra UI
+            if (contentScroll != null) contentScroll.setVisibility(View.GONE);
+
+            // 2. Fullscreen Mode (Status bar aur Navigation bar hide karo)
+            decorView.setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+
+            // 3. Player ko poori screen par phelao
+            youTubePlayerView.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT));
+
+        } else {
+            // 1. Show extra UI
+            if (contentScroll != null) contentScroll.setVisibility(View.VISIBLE);
+
+            // 2. Exit Fullscreen Mode
+            decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+
+            // 3. Player ka size wapas normal karo (250dp height)
+            float heightPx = 250 * getResources().getDisplayMetrics().density;
+            youTubePlayerView.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                    (int) heightPx));
+        }
     }
 
     @Override
@@ -223,4 +288,6 @@ public class VideoPlayerActivity extends AppCompatActivity {
         super.onDestroy();
         youTubePlayerView.release();
     }
+
+
 }
