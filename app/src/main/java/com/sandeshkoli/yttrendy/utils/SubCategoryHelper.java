@@ -103,7 +103,7 @@ public class SubCategoryHelper {
                 map.put("Top Journalists", "World top investigative journalists");
                 break;
 
-            case "🕌 Scholars":
+            case "🚩 Spiritual":
                 // Generic Wisdom & Religion mix
                 map.put("Swami Vivekananda", "Swami Vivekananda motivational speech hindi");
                 map.put("Premanand Ji Maharaj", "Premanand Ji Maharaj Vrindavan satsang");

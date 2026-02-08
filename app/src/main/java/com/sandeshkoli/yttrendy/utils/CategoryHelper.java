@@ -15,7 +15,7 @@ public class CategoryHelper {
         map.put("🎮 Games", "GAMES");
         map.put("⚽ Sports", "SPORTS");
         map.put("🎙️ Journalists", "JOURNALISTS");
-        map.put("🕌 Scholars", "SCHOLARS");
+        map.put("🚩 Spiritual", "Sanatan Dharma Spiritual");
         map.put("🌍 Leaders", "LEADERS");
         map.put("✨ Motivational", "MOTIVATIONAL");
         map.put("🎓 Courses", "COURSES");
